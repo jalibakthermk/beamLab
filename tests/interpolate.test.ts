@@ -3,6 +3,7 @@ import { bilinear, bracket, sample } from '../core/geometry/interpolate';
 import { chooseTargetStep, resample, resampleToTypeA } from '../core/geometry/resample';
 import { anglesToVector } from '../core/geometry/coords';
 import { createDataset, type PhotometricDataset } from '../core/model/dataset';
+import { range } from './fixtures/generate';
 
 function ds(h: number[], v: number[], f: (h: number, v: number) => number): PhotometricDataset {
   const values = new Float64Array(h.length * v.length);
@@ -117,6 +118,45 @@ describe('resampling', () => {
     const i0 = out.grid.h.indexOf(0);
     const j0 = out.grid.v.indexOf(0);
     expect(out.values[j0 * out.grid.h.length + i0]).toBeCloseTo(100, 12);
+  });
+
+  describe('grid-size limit is based on the area the source covers, not the full sphere', () => {
+    // Small Type B source with a 0.1° V step: full sphere at 0.1° would be 6.5 M points
+    const h = range(-10, 10, 0.5);
+    const v = range(-4, 4, 0.1);
+    const PEAK = { h: 1.5, v: -0.6, cd: 36181.4 };
+    const f = (hh: number, vv: number) =>
+      hh === PEAK.h && vv === PEAK.v ? PEAK.cd : 20000 * Math.exp(-((hh - 1.5) ** 2) / 8) * (vv < -0.6 ? Math.exp(vv + 0.6) : 1);
+    const values = new Float64Array(h.length * v.length);
+    v.forEach((vv, iv) => h.forEach((hh, ih) => (values[iv * h.length + ih] = f(hh, vv))));
+
+    it('keeps the source step when the covered area fits under the limit', () => {
+      const out = resampleToTypeA({ type: 'B', h, v, values }, { maxPoints: 100_000 })!;
+      expect(out.requestedStep).toBe(0.1);
+      expect(out.step).toBe(0.1);
+      expect(out.coarsened).toBe(false);
+      expect(out.grid.h[0]).toBeGreaterThanOrEqual(-10 - 1e-9);
+      expect(out.grid.h.at(-1)).toBeLessThanOrEqual(10 + 1e-9);
+      expect(out.grid.v[0]).toBeGreaterThanOrEqual(-4 - 1e-9);
+      expect(out.grid.v.at(-1)).toBeLessThanOrEqual(4 + 1e-9);
+    });
+
+    it('keeps a peak that sits on a fine source node', () => {
+      const out = resampleToTypeA({ type: 'B', h, v, values }, { maxPoints: 100_000 })!;
+      const ih = out.grid.h.indexOf(PEAK.h);
+      const iv = out.grid.v.indexOf(PEAK.v);
+      expect(ih).toBeGreaterThanOrEqual(0);
+      expect(iv).toBeGreaterThanOrEqual(0);
+      // Type A (1.5, -0.6) is Type B (1.4999, -0.6002), so a little of the much lower neighbours
+      // mixes in (~0.1% for this deliberately sharp spike). The coarsening bug lost ~5%.
+      expect(Math.abs(out.values[iv * out.grid.h.length + ih]! / PEAK.cd - 1)).toBeLessThan(0.005);
+    });
+
+    it('still coarsens, and says so, when even the covered area is too large', () => {
+      const out = resampleToTypeA({ type: 'B', h, v, values }, { maxPoints: 2000 })!;
+      expect(out.coarsened).toBe(true);
+      expect(out.grid.h.length * out.grid.v.length).toBeLessThanOrEqual(2000);
+    });
   });
 
   it('coarsens the target step when the grid would exceed maxPoints, and says so', () => {

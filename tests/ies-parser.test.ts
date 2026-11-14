@@ -283,6 +283,29 @@ describe('non-Type-A files', () => {
   });
 });
 
+describe('Type B file with a fine cut-off step (layout of a real automotive file)', () => {
+  // H -90..90 at 2°, V -40..40 with 0.1° between -10 and 5 (as in the beamsynth Class B file)
+  const h = range(-90, 90, 2);
+  const v = [...range(-40, -11, 1), ...range(-10, 5, 0.1), ...range(6, 40, 1)];
+  const cd = (hh: number, vv: number) => (hh === 2 && vv === -0.6 ? 36181.4 : 1000 + 10 * Math.abs(vv));
+  const text = writeIes({ header: 'IESNA:LM-63-2002', keywordLines: [], type: 2, h, v, cd, decimals: 1 });
+
+  it('is converted at the file’s own 0.1° step, without coarsening', () => {
+    const { dataset, warnings } = parseIes(text);
+    expect(codes(warnings)).not.toContain('RESAMPLE_STEP_COARSENED');
+    const conversion = dataset.provenance?.params['conversion'] as Record<string, unknown>;
+    expect(conversion['targetStep']).toBe(0.1);
+    expect(dataset.coverage.vMin).toBeGreaterThanOrEqual(-40 - 1e-9);
+    expect(dataset.coverage.vMax).toBeLessThanOrEqual(40 + 1e-9);
+  });
+
+  it('keeps the peak node value within 0.5% (the coarsened conversion lost ~5%)', () => {
+    const { dataset } = parseIes(text);
+    // Small residual: Type A (2, -0.6) is not exactly Type B (2, -0.6), and this spike is very sharp.
+    expect(Math.abs(sample(dataset, 2, -0.6) / 36181.4 - 1)).toBeLessThan(0.005);
+  });
+});
+
 describe('dataset identity', () => {
   it('uses a deterministic id from the content and the given name', () => {
     const text = fixture('format-lm63-2002.ies');

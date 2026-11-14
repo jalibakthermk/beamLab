@@ -25,7 +25,7 @@ Put real IES files in `local-data/`. That folder is git-ignored and must never b
 ## Project layout
 
 - `core/` — pure TypeScript library (parsing, geometry, operations, analysis, regulations, road). No DOM code; enforced by `tests/core-purity.test.ts` and `tsconfig.core.json`.
-- `ui/` — browser user interface; calls into `core/`.
+- `ui/` — browser user interface (plain TypeScript, no framework): workspace, viewer, info panel and app-state store. Plots use a minimal Plotly bundle. Calls into `core/` for all numbers.
 - `data/` — regulation definitions and presets as JSON.
 - `tests/` — Vitest tests; `tests/fixtures/` holds synthetic IES files written by `generate.ts`.
 - `scripts/` — `write-fixtures.mjs` (`npm run fixtures`).

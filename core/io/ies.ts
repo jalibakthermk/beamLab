@@ -80,6 +80,22 @@ export interface IesParseOptions {
 export interface IesParseResult {
   dataset: PhotometricDataset;
   warnings: IesWarning[];
+  /** The data at each parsing stage, for tracing values (diagnostics only; the app does not use it). */
+  stages: IesStages;
+}
+
+export interface IesStages {
+  /** Exactly as written in the file: angles in file order, candela plane by plane ([h][v]), before any scaling. */
+  raw: {
+    type: PhotometricType;
+    hAngles: number[];
+    vAngles: number[];
+    /** values[ih * vAngles.length + iv]; NaN where a token was missing or not a number. */
+    values: Float64Array;
+    factors: { multiplier: number; ballastFactor: number; ballastLampFactor: number; total: number };
+  };
+  /** After sorting, range filtering, scaling to absolute cd and symmetry expansion; still in the file's own type. Row-major [v][h]. */
+  source: { type: PhotometricType; h: number[]; v: number[]; values: Float64Array; symmetry: string | null };
 }
 
 const KEYWORD_FORMATS: SourceFormat[] = ['LM-63-1991', 'LM-63-1995', 'LM-63-2002', 'LM-63-2019'];
@@ -472,6 +488,17 @@ export function parseIes(text: string, options: IesParseOptions = {}): IesParseR
     for (let ih = 0; ih < hAxis.length; ih++) values[iv * hAxis.length + ih] = planes[ih]![iv]!;
   }
 
+  const stages: IesStages = {
+    raw: {
+      type,
+      hAngles: [...hRaw],
+      vAngles: [...vRaw],
+      values: raw.slice(),
+      factors: { multiplier, ballastFactor, ballastLampFactor, total: factor },
+    },
+    source: { type, h: [...hAxis], v: [...vAxis], values: values.slice(), symmetry },
+  };
+
   // ── Convert to canonical Type A ─────────────────────────────────────
   let grid = { h: hAxis, v: vAxis };
   let canonical: Float64Array = values;
@@ -544,5 +571,5 @@ export function parseIes(text: string, options: IesParseOptions = {}): IesParseR
       options.timestamp,
     ),
   });
-  return { dataset, warnings };
+  return { dataset, warnings, stages };
 }

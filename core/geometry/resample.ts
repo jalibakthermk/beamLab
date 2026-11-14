@@ -1,7 +1,7 @@
 import { createDataset, type Grid, type PhotometricDataset, type PhotometricType } from '../model/dataset';
 import { makeProvenance } from '../model/provenance';
 import { anglesToVector, AXIS_ASSUMPTIONS, vectorToAngles, type AxisAssumptions } from './coords';
-import { ANGLE_EPS, bilinear, sample } from './interpolate';
+import { ANGLE_EPS, bilinear, bracket, sample } from './interpolate';
 
 /** A grid in its own photometric type (h = H or C, v = V or γ), values row-major [v][h]. */
 export interface SourceGrid {
@@ -50,11 +50,63 @@ function uniformAxis(min: number, max: number, step: number): number[] {
   return out;
 }
 
+/** True if a direction (in the source's own angles) lies inside the source grid. */
+function inSource(src: SourceGrid, h: number, v: number): boolean {
+  if (!bracket(src.v, v)) return false;
+  if (bracket(src.h, h)) return true;
+  return src.type === 'C' && h < ANGLE_EPS && bracket(src.h, 360) !== null;
+}
+
+/**
+ * Type A bounding box of the area the source covers. Union of
+ * (1) a coarse pass over the sphere at `coarse` degrees, testing which
+ *     directions fall inside the source grid, widened by `coarse`, and
+ * (2) the directions of every source grid node (catches sources smaller
+ *     than the coarse step), widened later by the caller's margin.
+ * H is ignored at the poles (V = ±90), where it is undefined.
+ */
+function sourceBoxInA(src: SourceGrid, axes: AxisAssumptions, coarse: number) {
+  let hMin = Infinity, hMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+  const add = (a: { h: number; v: number }, pad: number) => {
+    vMin = Math.min(vMin, a.v - pad);
+    vMax = Math.max(vMax, a.v + pad);
+    if (Math.abs(a.v) < 90 - 1e-6) {
+      hMin = Math.min(hMin, a.h - pad);
+      hMax = Math.max(hMax, a.h + pad);
+    }
+  };
+  for (const v of uniformAxis(-90, 90, coarse)) {
+    for (const h of uniformAxis(-180, 180, coarse)) {
+      const s = vectorToAngles(src.type, anglesToVector('A', h, v), axes);
+      if (inSource(src, s.h, s.v)) add({ h, v }, coarse);
+    }
+  }
+  for (const v of src.v) {
+    for (const h of src.h) add(vectorToAngles('A', anglesToVector(src.type, h, v, axes)), 0);
+  }
+  if (!Number.isFinite(hMin)) {
+    hMin = -180;
+    hMax = 180;
+  }
+  return { hMin, hMax, vMin, vMax };
+}
+
+function maxSpacing(...axes: number[][]): number {
+  let max = 0;
+  for (const a of axes) for (let i = 1; i < a.length; i++) max = Math.max(max, a[i]! - a[i - 1]!);
+  return max;
+}
+
 /**
  * Converts a Type B or C grid to a canonical Type A grid: for each Type A
  * target direction, convert to the source's angles and sample bilinearly.
- * The target is uniform at `step` (default: finest source step) over the full
- * sphere, then cropped to the rows/columns that contain data.
+ * The target is uniform at `step` (default: finest source step). It spans the
+ * Type A bounding box of the area the source covers (see sourceBoxInA),
+ * widened by a margin (the largest source spacing, at most 10°, and at least
+ * two target steps), then
+ * snapped outward to multiples of the step and cropped to the rows/columns
+ * that contain data. The `maxPoints` limit applies to that box, not to the
+ * full sphere, so a file covering part of the sphere keeps its own step.
  * Returns null if no target point falls inside the source data.
  */
 export function resampleToTypeA(
@@ -64,12 +116,25 @@ export function resampleToTypeA(
   const axes = options.axes ?? AXIS_ASSUMPTIONS;
   const requestedStep = options.step ?? chooseTargetStep(src.h, src.v);
   const maxPoints = options.maxPoints ?? 4_000_000;
+  const box = sourceBoxInA(src, axes, Math.max(1, requestedStep));
+  const spacing = Math.min(maxSpacing(src.h, src.v), 10);
+  const targetAxes = (st: number) => {
+    const m = Math.max(spacing, 2 * st);
+    const snapLo = (x: number, lim: number) => Math.max(lim, Number((Math.floor((x - m) / st) * st).toFixed(9)));
+    const snapHi = (x: number, lim: number) => Math.min(lim, Number((Math.ceil((x + m) / st) * st).toFixed(9)));
+    return {
+      h: uniformAxis(snapLo(box.hMin, -180), snapHi(box.hMax, 180), st),
+      v: uniformAxis(snapLo(box.vMin, -90), snapHi(box.vMax, 90), st),
+    };
+  };
   let step = requestedStep;
-  const count = (s: number) => uniformAxis(-180, 180, s).length * uniformAxis(-90, 90, s).length;
+  const count = (st: number) => {
+    const t = targetAxes(st);
+    return t.h.length * t.v.length;
+  };
   while (count(step) > maxPoints) step = Number((step * 1.25).toFixed(6));
 
-  const hAll = uniformAxis(-180, 180, step);
-  const vAll = uniformAxis(-90, 90, step);
+  const { h: hAll, v: vAll } = targetAxes(step);
   const nH = hAll.length;
   const full = new Float64Array(nH * vAll.length);
   // At V = ±90 every H is the same direction (the pole), so pole rows would

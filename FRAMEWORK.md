@@ -1,6 +1,6 @@
 # IES Workbench — Development Framework
 
-Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 1. Author: Jalib Akther.
+Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 2. Author: Jalib Akther.
 
 This document is the instruction set for building the tool. It is written so it can be placed in the repo root (as `FRAMEWORK.md` or `CLAUDE.md`) and followed phase by phase with Claude Code.
 
@@ -79,7 +79,7 @@ LM-63 defines Types B and C relative to the luminaire, not the vehicle. How thei
 - Type B: H = 0, V = 0 is forward; the polar axis is lateral with H positive to the right; V positive is up.
 - Type C: polar axis vertical with γ = 0 down; C = 0 is forward; C increases counter-clockwise seen from above, so C = 90 is left.
 
-Type B and C files are converted on load to the canonical Type A grid by bilinear resampling. The target step is the finest step found in the source, applied uniformly, and is recorded in provenance; it is increased (with a warning) only if the grid would exceed 4 million points.
+Type B and C files are converted on load to the canonical Type A grid by bilinear resampling. The target step is the finest step found in the source, applied uniformly, and is recorded in provenance. The target grid spans only the area the source covers (its Type A bounding box plus a margin), and the step is increased (with a `RESAMPLE_STEP_COARSENED` warning) only if that area would exceed 4 million points. (Until 2026-11-14 the limit was applied to the full sphere, which coarsened typical automotive Type B files from 0.1° to 0.15625° and lowered the peak by about 5%.)
 
 ## 4. Open module
 
@@ -105,9 +105,15 @@ Interpretations of LM-63 where the standard is ambiguous each have a warning cod
 
 **Viewer**
 
-- Isocandela plot in H-V (linear and log scale, user contour levels).
-- False-colour map, H and V cross-sections at any cursor position, cursor read-out in cd.
-- Overlay of two datasets and a difference view.
+- Isocandela plot and false-colour map in H-V. Axes: H increasing to the right, V increasing upward, in degrees, equal scale on both axes, labelled "as seen from the lamp, looking forward".
+- Linear and log intensity scale. On log scale, values ≤ 0 are drawn at a floor (one tenth of the smallest positive value) for display only, and the UI says so.
+- Contour levels: automatic (`autoLevels` in `analysis/levels.ts`: nice linear steps, or 1-2-5 per decade on log) or a user-entered list in cd. Contour lines are computed in core (`analysis/contours.ts`, marching squares) and drawn as plain lines. Cells with any corner without data are skipped, so lines stop at the data edge and never bridge empty regions. (Plotly's contour trace was dropped: it interpolates every empty cell before drawing, which took about 2 s per level on converted Type B files.)
+- Perceptually uniform colour scale (Viridis) with a colour bar labelled in cd. Regions without data (`NaN`) are left empty, never drawn as zero; the coverage box is drawn dotted.
+- Zoom, pan, reset view, and "fit to data coverage".
+- Cursor read-out of H, V and intensity, taken from `sample()` on the full-resolution data, not from the plot's own interpolation.
+- Cross-sections: clicking sets a marker; intensity vs H at that V and intensity vs V at that H are shown under the main view (`analysis/section.ts`).
+- Overlay of a second dataset: its contours dashed in a contrasting colour at the same levels, and its curves in both cross-sections. The difference view is deferred to Phase 3.
+- Very fine grids are downsampled for display only (at most 500 grid lines per axis, `analysis/display.ts`); the UI states when this is active. Read-outs, sections and exports always use the full data.
 
 **Export**: IES LM-63-2002 Type A (multiplier 1, lines under 132 characters), with source keywords kept and provenance written as `[_PROVENANCE]` keyword lines; CSV matrix (H as columns, V as rows, `NaN` as empty cells); PNG of plots.
 
@@ -185,9 +191,11 @@ Common grid = finest step of the inputs; extent = union or intersection (user ch
 
 Single-page layout, three regions:
 
-- **Left: Workspace.** Loaded and derived datasets, each with a visibility toggle, summary, and provenance chain. Drag and drop to load.
-- **Centre: Viewer.** Isocandela / false-colour / road view tabs, cursor read-out, overlays.
-- **Right: Task panel** with tabs *Info*, *Evaluate* (regulation selector, aim options, results table), *Road* (mounting inputs, results), *Manipulate* (operation picker, inputs, preview, "Create dataset"), *Cut-off*.
+- **Left: Workspace.** Loaded and derived datasets: one row each with name, peak intensity, grid step, warning badge, select, overlay toggle and remove; failed files show their error on their own row. Drag and drop anywhere on the page, or a file picker; several files at once. Provenance chain per dataset: later phase.
+- **Centre: Viewer.** Isocandela / false-colour views (road view in Phase 7), cursor read-out, cross-sections, overlay, PNG export.
+- **Right: Task panel** with tabs *Info* (summary, source format and photometric type, symmetry, keywords, full warning list, flipH toggle, IES and CSV export), *Evaluate* (regulation selector, aim options, results table), *Road* (mounting inputs, results), *Manipulate* (operation picker, inputs, preview, "Create dataset"), *Cut-off*. Tabs of later phases are shown disabled until built.
+
+App state is a plain store without a framework (`ui/state/store.ts`): dataset registry, selected dataset, optional overlay dataset, view settings. Files are read with the browser File API and held in memory only; nothing is written to localStorage, IndexedDB or any other storage (a test checks every `ui/` file for this).
 
 A *Report* action exports the current evaluation as a printable page: file identity, operation chain, settings, results table, plots.
 
@@ -201,13 +209,14 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /model       dataset.ts, provenance.ts, version.ts
   /geometry    coords.ts, interpolate.ts, resample.ts, rotate.ts, flux.ts
   /ops         arithmetic.ts, aim.ts
-  /analysis    cutoff.ts, summary.ts
+  /analysis    summary.ts, section.ts, levels.ts, display.ts, contours.ts, cutoff.ts
   /regs        engine.ts, schema.ts
   /road        illuminance.ts            (shared with Road-illuminate)
 /data
   /regulations *.json                    (each with source + revision)
   /presets     vehicle mounting presets
-/ui            workspace, viewer, panels, report
+/ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
+               plotly.ts (minimal Plotly bundle), report (later)
 /tests
   /fixtures    synthetic *.ies with known answers, and generate.ts that writes them
   *.test.ts
@@ -221,14 +230,14 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phase 0 done and deployed. Phase 1 implemented and tested (132 tests passing), awaiting review; Type B/C axis assumptions still to be checked against a real file.
+Status (2026-11-14): Phase 0 done and deployed. Phase 1 done and deployed (Type B/C axis assumptions still to be checked against a real file). Phase 2 implemented and tested (193 tests passing), awaiting review and the "real file against a reference viewer" check.
 
 | Phase | Deliverable | Done when |
 |---|---|---|
 | 0. Setup | Repo, build, test runner, CI deploy to GitHub Pages | Empty app deploys; one passing test |
 | 1. Core I/O and model | IES parser, canonical model, Type A/B/C conversion, flux, export | Round-trip (load → export → load) reproduces values; A/B/C round-trips and anchor tests pass |
 | 2. Viewer | Workspace, isocandela and false-colour plots, sections, cursor | A real file displays correctly against a reference viewer |
-| 3. Arithmetic | Add, subtract, multiply, divide with provenance | Synthetic cases match hand calculation; coverage/NaN rules hold |
+| 3. Arithmetic | Add, subtract, multiply, divide with provenance; difference view in the viewer | Synthetic cases match hand calculation; coverage/NaN rules hold |
 | 4. Rotate / aim | 3D rotation and resampling | Yaw equals exact H shift; rotate then inverse-rotate returns the original within tolerance; flux conserved |
 | 5. Cut-off analysis | Gradient scan, cut-off line trace | Synthetic beam with a known cut-off position and gradient is recovered |
 | 6. Regulation engine | JSON schema, engine, overlay, first two regulations migrated from PIRA and beamTolerance | Results match those tools on the same files |
@@ -243,16 +252,19 @@ Status (2026-11-14): Phase 0 done and deployed. Phase 1 implemented and tested (
 - **Cross-tool checks**: same file, same settings, compared against PIRA, beamTolerance, Road-illuminate and beamCorrelate.
 - **Real files** stay out of the repo. Keep them in `local-data/`, which is git-ignored.
 - **core/ purity**: a test and a separate type-check of `core/` without DOM types fail if anything under `core/` imports from `ui/` or uses `document` / `window`.
+- **Viewer data**: every synthetic fixture is loaded through the same store the UI uses, and its peak must be at the known position; the asymmetric fixture's hot spot must be right and up in the plotted matrix too.
+- **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 
 ## 11. Decisions
 
-1. **Stack.** *Settled for Phases 0–1:* TypeScript (strict), Vite, Vitest, static deploy to GitHub Pages via GitHub Actions; no runtime dependencies yet. Plotly is still the proposal for Phase 2 and is added only on approval. If Road-illuminate is plain JavaScript, either match it or convert its calculation core as part of Phase 7.
+1. **Stack.** *Settled:* TypeScript (strict), Vite, Vitest, static deploy to GitHub Pages via GitHub Actions. One runtime dependency: `plotly.js` **4.2.0** (pinned exactly), imported as a minimal bundle — `lib/core` (includes scatter) plus the heatmap trace only — about 400 KB gzipped. `vite.config.ts` drops Plotly's unused map-trace CSS and maps Node's `global` to `globalThis` for its dependencies. Any further dependency needs approval. If Road-illuminate is plain JavaScript, either match it or convert its calculation core as part of Phase 7.
 2. **Shared code.** *Open.* Copy the road module into this repo, or publish a small shared `lighting-core` package that all your tools import. The second is more work now and much less later.
 3. **Which regulations first.** *Open.* Suggested order: R149 Class C low beam, R149 high beam, R148 signal functions, FMVSS 108.
 4. **Default interpolation.** *Bilinear for now* (the only method implemented). Bicubic looks smoother but can overshoot near a cut-off; decide before Phase 5.
 5. **Licence and visibility.** *Settled:* © 2026 Jalib Akther, all rights reserved. The GitHub repository and the Pages site are public.
 6. **Exporting datasets with missing data.** *Open.* IES export refuses `NaN`. Decide whether to offer "crop to the largest fully covered rectangle", "fill with zero on explicit request", or both (Phase 3 at the latest).
-7. **Type B/C axis assumptions.** *Open until verified.* Check `AXIS_ASSUMPTIONS` (section 3.2) against a reference viewer with real Type B and C files from your sources, and record the result here.
+7. **Type B/C axis assumptions.** *Open until verified.* Check `AXIS_ASSUMPTIONS` (section 3.2) against a reference viewer with real Type B and C files from your sources, and record the result here. The Phase 2 viewer can now be used for this.
+8. **Loading Plotly on demand.** *Open, low priority.* Plotly is ~95% of the bundle. Loading it only when the first file is opened (dynamic import) would make the empty page load faster.
 
 ## 12. Working with Claude Code
 
