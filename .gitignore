@@ -1,0 +1,11 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Real IES files: never commit
+local-data/
+
+# OS / editor
+.DS_Store
+*.log
+.vite/
