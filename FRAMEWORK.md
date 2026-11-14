@@ -167,15 +167,40 @@ Generic engine driven by JSON definitions: schema and hand-written validator `co
 
 ### 5.2 Performance check (road illumination)
 
-Reuse Road-illuminate rather than rewriting it:
+`core/road/` holds the calculation, ported in Phase 7 from Road-illuminate (`headlamp_road_illuminance.py`, "road" method) onto this repo's dataset model, `sample()` and the Phase 4 rotation. It imports only `core/model` and `core/geometry` (a test checks this), so it can be extracted as a shared package (decision 2). Road-illuminate itself does not import it yet.
 
-1. Extract Road-illuminate's calculation into `core/road/` (or a small shared package) with a clean function: `roadIlluminance(lamps[], roadGrid, options)`, where each lamp is `{ dataset, position (x, y, height), aim (yaw, pitch) }`.
-2. Road-illuminate then imports the same module, so both tools stay in sync.
-3. Illuminance at a road point is `E = I(H,V) · cos(θ) / d²`, with `θ` the incidence angle on the evaluated plane and `d` the lamp-to-point distance. Support the horizontal road surface and vertical planes (for sign and pedestrian visibility).
+**Geometry** (`illuminance.ts`). Vehicle frame: x forward, y right, z up (m); road surface z = 0; origin on the ground below the vehicle front centre. A lamp is `{ dataset, position (x, y, height), aim (yaw, pitch, roll), mirror? }` with the signs of 6.1: R = Yaw · Pitch · Roll moves beam directions, so a ray with vehicle direction u leaves the lamp at lamp-frame direction Rᵀ·u, converted to Type A (H, V) and sampled with `sample()`. `mirror` reads the file at −H (before the aim). A dataset that is itself a Phase 4 rotation is sampled from its source with the combined matrix (one interpolation), unless `composeRotation: false`. For a point P on a plane with unit normal n: d = P − L, r = |d|, cos θ = −(d/r)·n, **E = I(H, V) · cos θ / r²**; on the road (n = +z) this is E = I·h/r³. A plane facing away from a lamp gets nothing from it. Several lamps are summed. Supported: road grid (`roadIlluminance`), vertical plane x = const facing the vehicle (`verticalIlluminance`), single points with any normal (`illuminanceAt`, `makeEvaluator`).
 
-Outputs: isolux plot with lane markings, reach of chosen isolux lines (for example 1 lx and 3 lx) on the lane centre and both edges, beam width at set distances, and a requirements table (customer spec as JSON, same engine idea as 5.1 but in road coordinates).
+**Coverage.** A ray outside a lamp's data makes the point unknown (`NaN`), also when other lamps have data there (no partial sums); `outside: 'zero'` counts it as 0 lx instead. Grids report the unknown share. Size guard: 1 000 000 points.
 
-## 6. Manipulate module
+**Setup** (`setup.ts`). Lanes: width, number, traffic side (lane 1 is at the road edge on the traffic side), own lane, vehicle offset from the lane centre (+ right); gives the named lines `vehicle-axis`, `lane-centre`, `lane-left-edge`, `lane-right-edge` and the markings. Lamp pair: one file for both lamps (optionally mirrored for one side) or two files; separation, mounting height, x and both aims must be entered: there are no defaults. `data/presets/vehicles/` holds one preset, `EXAMPLE-passenger-car.json`, with made-up values, labelled EXAMPLE.
+
+**Results** (`metrics.ts`, `results.ts`). User-chosen isolux levels. Reach: furthest distance on a line where E ≥ level (a sample equal to the level counts), with the crossing interpolated linearly between neighbouring known samples; every crossing is listed and more than one is flagged; "beyond end" and "unknown beyond" are flagged. Width at chosen distances for one level: outer extent of the area ≥ level, its separate segments, and flags for clipping at the grid edge and running into unknown. Point values on the road or on vertical planes. Maximum and its position. `runRoad` runs everything on plain data; `roadResultsToCsv` exports it.
+
+**Requirements** (`requirements.ts`, `data/requirements/`: `schema.json`, `template.json` with null values). Elements: `point` (min and/or max lx at x, y, z on plane `road`, `vertical` or `{ normal }`), `reach` (min and/or max m for a level on a named line), `width` (min and/or max m at a distance for a level). Statuses pass, fail, not evaluated, as in 5.1. A missing value is not evaluated. Unknown areas never count as a pass: a result is decided only if the unknown part (or the grid edge) cannot change it. For example, a width that is already wide enough on known data passes, but one that is too narrow and runs into unknown is not evaluated. A level that is never reached on fully known data counts as 0 m.
+
+**Golden comparison with Road-illuminate** (`tests/road-golden.test.ts`). CI has neither numpy nor `import/`, so the reference was generated **once** by running Road-illuminate's own Python, unchanged (commit e0e3df5), with `scripts/golden-road-illuminate.py` on `tests/fixtures/road-beam-typeA.ies`. It is stored as `tests/fixtures/road/golden-road-illuminate.json`. Road method, four cases (same file; toe-out with a mirrored right lamp; vehicle pitch about the rear axle plus roll; left lamp only): E agrees to 1e-9, and reach and width agree within one Road-illuminate sampling step. Vertical (HSPR) method: within 5 % (measured 3.7 %). The differences are listed in the table below.
+
+| Topic | Road-illuminate | beamLab |
+|---|---|---|
+| Lateral axis | y positive LEFT | y positive RIGHT |
+| Horizontal aim | "toe", + = outward (left lamp turns left) | yaw, + = right, per lamp |
+| Vertical aim | percent (or degrees), − = down | pitch in degrees, + = up (`pitchFromPercent` converts) |
+| Roll | vehicle roll only, + = left side up | per-lamp roll, + = clockwise seen from the lamp |
+| Vehicle pitch / roll and pivot | built in (moves lamp positions) | not modelled: enter each lamp's resulting position and aim |
+| Outside the data | 0 cd | unknown (`NaN`) by default; 0 only with the option |
+| Behind the lamp (forward component ≤ 0) | 0 cd always | whatever the data says there; usually outside coverage → unknown |
+| Road method, lamp height ≤ 0 | Python: still uses h (negative E); web tool: lamp skipped | plane faces away → 0 |
+| "vertical" (HSPR) method | E on vertical planes; aim and toe **shift** the data; H, V rounded to 0.05° and clamped to ±45°, ±15°; counts E > level | vertical planes with a true rotation and bilinear `sample()`, no rounding or clamping; counts E ≥ level |
+| Default method | "vertical" (HSPR) | road surface |
+| H-V system | azel (Type A) or elaz | Type A; Type B files are converted on load (Phase 1) |
+| Reach | last sample on a 0.05 m grid (0.1 m in the web tool), no interpolation; one value | linear interpolation between samples of the road grid; all crossings, flagged |
+| Width | first and last sample on a 0.02 m grid (0.05 m in the web tool) | interpolated outer extent and the segments |
+| Symmetric files (H from 0) | mirrored on load | mirrored on load by the Phase 1 parser (same) |
+| Requirements | web tool: point, range, width and zone (min / max / avg), `<=` / `>=` | point, reach, width with min and/or max; no zone statistics |
+| Scale / lumens options | `--scale`, `--lumens` | not provided: use Manipulate → Scale |
+
+## 6. Manipulate module## 6. Manipulate module
 
 All binary operations follow one pipeline: **align → resample to a common grid → operate → tag provenance** (`ops/arithmetic.ts`, `geometry/resample.ts`). Every operation returns a new dataset; inputs are never modified. `NaN` in any input gives `NaN` in the result.
 
@@ -238,8 +263,8 @@ Add: intensity + intensity with weights ≥ 0 gives intensity; a negative weight
 Single-page layout, three regions:
 
 - **Left: Workspace.** Loaded and derived datasets: one row each with name, peak intensity, grid step, warning badge, select, overlay toggle and remove; failed files show their error on their own row. Drag and drop anywhere on the page, or a file picker; several files at once. Provenance chain per dataset: later phase.
-- **Centre: Viewer.** Isocandela / false-colour views (road view in Phase 7), cursor read-out, cross-sections, overlay, PNG export.
-- **Right: Task panel** with tabs *Info* (summary, source format and photometric type, symmetry, keywords, full warning list, flipH toggle, IES and CSV export), *Evaluate* (regulation selector, aim options, results table), *Road* (mounting inputs, results), *Manipulate* (operation picker; inputs A and B from the workspace; weights or scalar; extent; coverage policy; denominator floor; window limits; a plain-language summary before running, including whether resampling will happen and the resulting grid size; Preview; "Create dataset" with an editable name; on Add the note "Assumes both files share the same aim and reference axis. Lamp position offset is ignored (far field)."), *Cut-off*. Tabs of later phases are shown disabled until built.
+- **Centre: Viewer.** Isocandela / false-colour views, cursor read-out, cross-sections, overlay, PNG export. While the Road tab is open: the road top view (false-colour lx on a log scale, isolux contours, lane markings, schematic vehicle outline, optional equal axis scale, cursor read-out in lx with x and y in m; unknown areas empty).
+- **Right: Task panel** with tabs *Info* (summary, source format and photometric type, symmetry, keywords, full warning list, flipH toggle, IES and CSV export), *Evaluate* (regulation selector, aim options, results table), *Road* (lamp pair helper and lamp list with dataset, position and aim; lanes; grid and treat-as-zero; isolux levels, width distances, points; requirement file; results table with reach, widths, points, requirement status and margins; CSV export; recalculates on every change in a Web Worker), *Manipulate* (operation picker; inputs A and B from the workspace; weights or scalar; extent; coverage policy; denominator floor; window limits; a plain-language summary before running, including whether resampling will happen and the resulting grid size; Preview; "Create dataset" with an editable name; on Add the note "Assumes both files share the same aim and reference axis. Lamp position offset is ignored (far field)."), *Cut-off*. Tabs of later phases are shown disabled until built.
 
 Preview: a result shown in the viewer but not in the workspace, with "Create dataset" (editable name) and "Close preview". Workspace rows show the kind and an expandable provenance chain; the Info panel shows the chain, and names can be edited there.
 
@@ -259,16 +284,18 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /ops         arithmetic.ts, aim.ts
   /analysis    summary.ts, section.ts, levels.ts, display.ts, contours.ts, cutoff.ts
   /regs        schema.ts, engine.ts, reaim.ts
-  /road        illuminance.ts            (shared with Road-illuminate)
+  /road        illuminance.ts, setup.ts, metrics.ts, requirements.ts, results.ts   (no imports outside core/model and core/geometry)
 /data
   /regulations *.json                    (each with source + revision; README with the format; MIGRATION.md)
-  /presets     cutoff/ (scan settings: schema.json, template.json); vehicle mounting presets (later)
+  /presets     cutoff/ (scan settings: schema.json, template.json); vehicles/ (EXAMPLE-passenger-car.json, made-up values)
+  /requirements schema.json, template.json (road requirements, null values)
 /ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
-               manipulate.ts, cutoff.ts (Cut-off tab), evaluate.ts (Evaluate tab), plotly.ts (minimal Plotly bundle), report (later)
+               manipulate.ts, cutoff.ts (Cut-off tab), evaluate.ts (Evaluate tab), road.ts (Road tab), road-view.ts (road top view),
+               road-run.ts + road-worker.ts (road calculation in a Web Worker), plotly.ts (minimal Plotly bundle), report (later)
 /tests
-  /fixtures    synthetic *.ies with known answers, and generate.ts that writes them
+  /fixtures    synthetic *.ies with known answers, and generate.ts that writes them; road/ (Road-illuminate golden reference)
   *.test.ts
-/scripts       write-fixtures.mjs           (npm run fixtures)
+/scripts       write-fixtures.mjs           (npm run fixtures); golden-road-illuminate.py (regenerates the Road-illuminate reference; needs numpy and import/)
 FRAMEWORK.md   README.md   LICENSE
 ```
 
@@ -278,7 +305,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 5 and 6 implemented and tested (366 tests passing), awaiting review. Regulation data: 29 files migrated from UN R148 Rev.0 Amend.5 and UN R149 Rev.0 Amend.6 (Class C and V passing beams, R148 signal functions), all verified: false; report in data/regulations/MIGRATION.md. Remaining R149 sections are not yet converted; cut-off sharpness limits stay null (not taken from the text yet).
+Status (2026-11-14): Phases 0–6 done and pushed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phase 7 (road performance) implemented and tested, awaiting review: 444 tests passing, golden comparison with Road-illuminate in place (5.2). Regulation data: 29 files migrated from UN R148 Rev.0 Amend.5 and UN R149 Rev.0 Amend.6 (Class C and V passing beams, R148 signal functions), all verified: false; report in data/regulations/MIGRATION.md. Remaining R149 sections are not yet converted; cut-off sharpness limits stay null (not taken from the text yet).
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -305,19 +332,21 @@ Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still
 - **Rotation**: sign of yaw, pitch and roll on direction vectors and on the asymmetric fixture; pure yaw = exact H shift; H = 0 pitched by p → V + p exactly; H = 90°, V = 0 unchanged by pitch; roll 90° maps (h, 0) to (0, −h); Gaussian peak at the hand-computed position (within half a grid step); two rotations = one composed rotation (1e-9 of peak); rotate then inverse, composed: exact (1e-9 of peak); without composition, smooth beam on a 3° grid: within 0.1% of peak (measured 0.047%); flux on the extended grid within 0.05% (measured 0.004%).
 - **Cut-off**: sigmoid fixtures with an analytic answer (edge at V0 → cut-off at V0 − 0.05°, Gmax = A·tanh(0.05 / (2w))) on 0.05° and 0.25° grids, a kinked beam (elbow at H 1°, 15° shoulder) and its mirror, and a noisy beam with a second, weaker edge. Fine grid: position within 0.005° (measured 0.0001°), Gmax within 1% (measured 0.01%); kink: elbow within 0.02°, shoulder within 0.05° (measured exact); pitched by 0.33°: within 0.01° (measured 0.005°, resampling); aim: converges, residual ≤ 0.005°, correction within 0.01° of the geometric value.
 - **Regulation engine**: a TEST file of invented values only; hand-computed results on a plane field I = 3000 + 100·H + 50·V (bilinear exact) for every element type and every limit form; unit conversion, mirroring, search radius, scale factor; not-evaluated cases (point outside coverage, zone and line partly outside, missing position, NaN); re-aim search recovers a known optimum on a mis-aimed spot within 0.05°; validator messages.
+- **Road** (Phase 7): isotropic source, E = I·h / (x² + y² + h²)^1.5 to 1e-10; two lamps summed on and off the centre line; narrow spot pitched down by v from height h lands at x = h / tan v (within 0.1 m); yaw moves it to the expected side; a mirrored pair with opposite yaw and roll is symmetric about the centre line (1e-9); lamp aim equals the Phase 4 rotation (exact when composed, within 2 % after one more resampling); vertical plane and arbitrary normals; unknown share and treat-as-zero; size guard and input checks; lanes, lamp pair, EXAMPLE preset; reach, crossings (three-crossing case), width with separate areas and clipping by hand; requirements with unknown areas never passing; golden comparison with Road-illuminate (5.2).
 - **Regressions**: each value mismatch found against a reference gets a synthetic fixture and a test (e.g. `fine-cutoff-typeB.ies` for the Phase 2 resampling-step fix).
 - **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 
 ## 11. Decisions
 
 1. **Stack.** *Settled:* TypeScript (strict), Vite, Vitest, static deploy to GitHub Pages via GitHub Actions. One runtime dependency: `plotly.js` **4.2.0** (pinned exactly), imported as a minimal bundle — `lib/core` (includes scatter) plus the heatmap trace only — about 400 KB gzipped. `vite.config.ts` drops Plotly's unused map-trace CSS and maps Node's `global` to `globalThis` for its dependencies. Any further dependency needs approval. If Road-illuminate is plain JavaScript, either match it or convert its calculation core as part of Phase 7.
-2. **Shared code.** *Open.* Copy the road module into this repo, or publish a small shared `lighting-core` package that all your tools import. The second is more work now and much less later.
+2. **Shared code.** *Open.* Copy the road module into this repo, or publish a small shared `lighting-core` package that all your tools import. The second is more work now and much less later. Phase 7: `core/road/` is ready to extract (imports only `core/model` and `core/geometry`); Road-illuminate does not use it yet.
 3. **Which regulations first.** *Open.* Suggested order: R149 Class C low beam, R149 high beam, R148 signal functions, FMVSS 108.
 4. **Default interpolation.** *Bilinear for now* (the only method implemented). Bicubic looks smoother but can overshoot near a cut-off; decide before Phase 5.
 5. **Licence and visibility.** *Settled:* © 2026 Jalib Akther, all rights reserved. The GitHub repository and the Pages site are public.
 6. **Exporting datasets with missing data.** *Open.* IES export refuses `NaN`. Phase 3 added `clampToIntensity` (negatives → 0) and "treat as zero" per input, but no crop or fill of `NaN` regions. Decide whether to offer "crop to the largest fully covered rectangle", "fill with zero on explicit request", or both.
 7. **Type B/C axis assumptions.** *Open until verified.* Check `AXIS_ASSUMPTIONS` (section 3.2) against a reference viewer with real Type B and C files from your sources, and record the result here. The Phase 2 viewer can now be used for this.
 8. **Loading Plotly on demand.** *Open, low priority.* Plotly is ~95% of the bundle. Loading it only when the first file is opened (dynamic import) would make the empty page load faster.
+9. **Road: HSPR (vertical) method.** *Open.* Road-illuminate's default "vertical" method shifts the data by the aim and rounds to 0.05° (the HSPR / GTB reference method). beamLab uses a true rotation and bilinear sampling on vertical planes (up to 3.7 % different on the golden case). Decide whether an HSPR-compatible mode is needed for comparisons with HSPR results.
 
 ## 12. Working with Claude Code
 

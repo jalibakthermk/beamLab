@@ -26,6 +26,7 @@ const EXPECTED: Record<string, Expectation> = {
   'same-beam-typeC.ies': { at: SAME_BEAM_PEAK, tol: 3 },
   'uniform-limited-typeA.ies': { uniform: UNIFORM_LIMITED.cd },
   'fine-cutoff-typeB.ies': { at: { h: 2, v: -0.6 } },
+  'road-beam-typeA.ies': { at: { h: 3, v: -1.5 } },
   // Cut-off fixtures: flat in V below the cut-off, brightest at H = 0; first row (V = -5) wins ties
   'cutoff-plain-fine.ies': { at: { h: 0, v: -5 } },
   'cutoff-plain-coarse.ies': { at: { h: 0, v: -5 } },

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "beamLab road requirements",
+  "description": "Customer road-illumination requirements, checked by core/road/requirements.ts (the hand-written validator there is authoritative). Units: m and lx. Vehicle frame: x forward, y right, z up, origin on the ground below the vehicle front centre. Unknown values are null and give 'not evaluated'.",
+  "type": "object",
+  "required": ["id", "title", "source", "verified", "elements"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "source": { "type": ["string", "null"] },
+    "revision": { "type": ["string", "null"] },
+    "verified": { "type": "boolean" },
+    "notes": { "type": "string" },
+    "elements": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "name", "x", "y", "z", "plane"],
+            "properties": {
+              "type": { "const": "point" },
+              "name": { "type": "string" },
+              "ref": { "type": ["string", "null"] },
+              "x": { "type": ["number", "null"] },
+              "y": { "type": ["number", "null"] },
+              "z": { "type": ["number", "null"] },
+              "plane": {
+                "oneOf": [
+                  { "enum": ["road", "vertical"] },
+                  { "type": "object", "required": ["normal"], "properties": { "normal": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 } } }
+                ]
+              },
+              "min": { "type": ["number", "null"] },
+              "max": { "type": ["number", "null"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "name", "line", "level"],
+            "properties": {
+              "type": { "const": "reach" },
+              "name": { "type": "string" },
+              "ref": { "type": ["string", "null"] },
+              "line": { "enum": ["vehicle-axis", "lane-centre", "lane-left-edge", "lane-right-edge"] },
+              "level": { "type": ["number", "null"] },
+              "min": { "type": ["number", "null"] },
+              "max": { "type": ["number", "null"] }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "name", "x", "level"],
+            "properties": {
+              "type": { "const": "width" },
+              "name": { "type": "string" },
+              "ref": { "type": ["string", "null"] },
+              "x": { "type": ["number", "null"] },
+              "level": { "type": ["number", "null"] },
+              "min": { "type": ["number", "null"] },
+              "max": { "type": ["number", "null"] }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

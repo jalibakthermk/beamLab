@@ -54,7 +54,63 @@ export interface Preview {
   report: RotationReport | null;
 }
 
-export type PanelTab = 'info' | 'evaluate' | 'manipulate' | 'cutoff';
+export type PanelTab = 'info' | 'evaluate' | 'road' | 'manipulate' | 'cutoff';
+
+/** One lamp on the Road tab. null = not entered yet (there are no hidden defaults). */
+export interface RoadLampSettings {
+  entryKey: string | null;
+  mirror: boolean;
+  x: number | null;
+  y: number | null;
+  height: number | null;
+  yaw: number | null;
+  pitch: number | null;
+  roll: number | null;
+}
+
+/** Road tab settings. Mounting, aim and lane values start empty; the grid has tool defaults. */
+export interface RoadSettings {
+  lamps: RoadLampSettings[];
+  pair: {
+    leftKey: string | null;
+    /** null: the left file is used for both lamps. */
+    rightKey: string | null;
+    mirror: 'none' | 'left' | 'right';
+    separation: number | null;
+    height: number | null;
+    x: number | null;
+    yaw: number | null;
+    pitch: number | null;
+    roll: number | null;
+    /** Right lamp aim: mirror image of the left (yaw and roll change sign) or the same. */
+    rightAim: 'mirrored' | 'same';
+  };
+  lanes: { laneWidth: number | null; lanes: number | null; trafficSide: 'right' | 'left' | null; ownLane: number | null; offset: number | null };
+  grid: { xMin: number; xMax: number; xStep: number; yMin: number; yMax: number; yStep: number };
+  levelsText: string;
+  widthText: string;
+  widthLevel: number | null;
+  pointsText: string;
+  outsideZero: boolean;
+  equalAxes: boolean;
+  reqKey: string | null;
+}
+
+export const EMPTY_ROAD_LAMP: RoadLampSettings = { entryKey: null, mirror: false, x: null, y: null, height: null, yaw: null, pitch: null, roll: null };
+
+export const DEFAULT_ROAD: RoadSettings = {
+  lamps: [],
+  pair: { leftKey: null, rightKey: null, mirror: 'none', separation: null, height: null, x: null, yaw: null, pitch: null, roll: null, rightAim: 'mirrored' },
+  lanes: { laneWidth: null, lanes: null, trafficSide: null, ownLane: null, offset: null },
+  grid: { xMin: 0, xMax: 150, xStep: 0.5, yMin: -15, yMax: 15, yStep: 0.25 },
+  levelsText: '',
+  widthText: '',
+  widthLevel: null,
+  pointsText: '',
+  outsideZero: false,
+  equalAxes: false,
+  reqKey: null,
+};
 
 /** Evaluate tab settings. */
 export interface EvaluateSettings {
@@ -101,6 +157,7 @@ export interface AppState {
   panelTab: PanelTab;
   cutoff: CutoffSettings;
   evaluate: EvaluateSettings;
+  road: RoadSettings;
 }
 
 export type Listener = (state: AppState) => void;
@@ -123,6 +180,7 @@ export interface Store {
   setPanelTab(tab: PanelTab): void;
   setCutoff(patch: Partial<CutoffSettings>): void;
   setEvaluate(patch: Partial<EvaluateSettings>): void;
+  setRoad(patch: Partial<RoadSettings>): void;
 }
 
 function load(key: string, name: string, text: string, flipH: boolean): Entry {
@@ -145,6 +203,7 @@ export function createStore(): Store {
     panelTab: 'info',
     cutoff: { ...DEFAULT_CUTOFF },
     evaluate: { regId: null, traffic: 'RHT', aimMode: 'as-loaded', scaleFactor: 1, lamps: 1, selected: null, sortByMargin: false },
+    road: structuredClone(DEFAULT_ROAD),
   };
   const listeners = new Set<Listener>();
   let counter = 0;
@@ -270,6 +329,10 @@ export function createStore(): Store {
 
     setEvaluate(patch) {
       set({ ...state, evaluate: { ...state.evaluate, ...patch } });
+    },
+
+    setRoad(patch) {
+      set({ ...state, road: { ...state.road, ...patch } });
     },
   };
 }

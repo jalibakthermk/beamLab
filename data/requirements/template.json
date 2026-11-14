@@ -1,0 +1,14 @@
+{
+  "id": "template",
+  "title": "Template (no values): copy, fill in from the customer specification, verify",
+  "source": null,
+  "revision": null,
+  "verified": false,
+  "elements": [
+    { "type": "point", "name": "Point on the road", "ref": null, "x": null, "y": null, "z": null, "plane": "road", "min": null, "max": null },
+    { "type": "point", "name": "Point on a vertical plane facing the vehicle", "ref": null, "x": null, "y": null, "z": null, "plane": "vertical", "min": null, "max": null },
+    { "type": "reach", "name": "Reach on the lane centre", "ref": null, "line": "lane-centre", "level": null, "min": null },
+    { "type": "width", "name": "Width at a distance", "ref": null, "x": null, "level": null, "min": null }
+  ],
+  "notes": "All numeric values are null on purpose. Units: metres and lux. Vehicle frame: x forward, y right, z up, origin on the ground below the vehicle front centre. point.plane: \"road\" (horizontal, z should be 0), \"vertical\" (plane facing the vehicle) or { \"normal\": [nx, ny, nz] }. reach.line: vehicle-axis, lane-centre, lane-left-edge or lane-right-edge. reach and width also accept \"max\"."
+}

@@ -1,0 +1,20 @@
+{
+  "label": "EXAMPLE only, not a real vehicle: replace every value with your own",
+  "example": true,
+  "notes": "Made-up values so the Road tab can be tried out. They are not taken from any vehicle, regulation or customer specification. Enter your own mounting height, separation, position and aim.",
+  "lamps": {
+    "x": 0,
+    "height": 0.65,
+    "separation": 1.4,
+    "mirror": "none",
+    "aimLeft": { "yaw": 0, "pitch": -0.57, "roll": 0 },
+    "aimRight": { "yaw": 0, "pitch": -0.57, "roll": 0 }
+  },
+  "lanes": {
+    "laneWidth": 3.5,
+    "lanes": 2,
+    "trafficSide": "right",
+    "ownLane": 1,
+    "offset": 0
+  }
+}

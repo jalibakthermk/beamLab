@@ -4,6 +4,7 @@ import { createStore, type LoadedFile } from './state/store';
 import { renderWorkspace } from './workspace';
 import { renderInfo } from './info';
 import { createViewer } from './viewer';
+import { createRoadView } from './road-view';
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
@@ -17,12 +18,21 @@ const panelEl = document.getElementById('taskpanel')!;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const dropOverlay = document.getElementById('drop-overlay')!;
 
-const viewer = createViewer(viewerEl, store);
+// The viewer area shows the angular viewer, or the road view while the Road tab is open.
+const angularEl = document.createElement('div');
+const roadEl = document.createElement('div');
+viewerEl.replaceChildren(angularEl, roadEl);
+const viewer = createViewer(angularEl, store);
+const roadView = createRoadView(roadEl, store);
 const render = () => {
   const state = store.getState();
   renderWorkspace(workspaceEl, state, store);
   renderInfo(panelEl, state, store);
-  viewer.render(state);
+  const road = state.panelTab === 'road';
+  angularEl.hidden = road;
+  roadEl.hidden = !road;
+  if (road) roadView.render(state);
+  else viewer.render(state);
 };
 store.subscribe(render);
 render();

@@ -206,6 +206,15 @@ function noise(h: number, v: number): number {
   return 2 * (x - Math.floor(x)) - 1;
 }
 
+/**
+ * Road fixture (Phase 7): asymmetric low-beam-like spot, peak 20000 cd at H +3°, V -1.5°,
+ * on 100 cd background; H -45..45 at 1°, V -15..10 at 0.25°. Used for the golden comparison
+ * with Road-illuminate.
+ */
+export const ROAD_BEAM = { peak: 20000, h0: 3, v0: -1.5, sh: 8, sv: 1.2, base: 100 };
+export const roadBeamCd = (h: number, v: number): number =>
+  ROAD_BEAM.base + ROAD_BEAM.peak * Math.exp(-((h - ROAD_BEAM.h0) ** 2) / (2 * ROAD_BEAM.sh ** 2) - (v - ROAD_BEAM.v0) ** 2 / (2 * ROAD_BEAM.sv ** 2));
+
 export const MULTIPLIER_CASE = { multiplier: 2.5, ballast: 0.9, blpf: 1.1 };
 export const FUTURE_USE_FACTOR = 1.2;
 
@@ -324,6 +333,16 @@ export function buildFixtures(): Record<string, string> {
     (hh, vv) => NOISE.amplitude * noise(hh, vv) - NOISE.secondA * (1 - sigmoid(vv - NOISE.secondC)),
     'plain cut-off with noise and a second, weaker step at V=+1',
   );
+
+  f['road-beam-typeA.ies'] = writeIes({
+    header: 'IESNA:LM-63-2002',
+    keywordLines: [...K2002, '[_FIXTURE] road beam: spot 20000 cd at H +3, V -1.5 on 100 cd, H -45..45 at 1 deg, V -15..10 at 0.25 deg'],
+    type: 3,
+    h: range(-45, 45, 1),
+    v: range(-15, 10, 0.25),
+    cd: roadBeamCd,
+    decimals: 3,
+  });
 
   // Format variants: all describe VARIANT_H × VARIANT_V with variantCd
   f['format-lm63-1986.ies'] = variant(null, ['beamLab synthetic fixture', 'LM-63-1986 variant, no header line'], {

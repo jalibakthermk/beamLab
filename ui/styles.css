@@ -216,3 +216,12 @@ footer p { margin: 2px 0; }
 .st-not-evaluated { color: var(--muted); }
 .linklike { font: inherit; background: none; border: none; color: inherit; cursor: pointer; padding: 0; text-decoration: underline dotted; }
 .leg-eval::before { border-top: 2px solid #2b8a3e; }
+
+/* Phase 7: road tab and road view */
+.needs-value { border-color: var(--warn) !important; }
+.road-lamp { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px; margin: 6px 0; }
+.leg-level::before { border-top: 2px solid var(--leg-color, var(--accent)); }
+.leg-lane::before { border-top: 2px dashed var(--muted); }
+.pad textarea { font: inherit; font-size: 0.85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; resize: vertical; }
+details.report > summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; padding: 2px 0; }
+details.report[open] > summary { margin-bottom: 6px; }

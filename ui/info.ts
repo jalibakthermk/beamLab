@@ -5,6 +5,7 @@ import { downloadText } from './download';
 import { renderManipulate } from './manipulate';
 import { renderCutoff } from './cutoff';
 import { renderEvaluate } from './evaluate';
+import { renderRoad } from './road';
 import { exportIes, ExportError } from '../core/io/export';
 import { exportCsv } from '../core/io/csv';
 import { sample } from '../core/geometry/interpolate';
@@ -17,7 +18,7 @@ const probe = { h: '', v: '' };
 const TABS: Array<{ label: string; tab: PanelTab | null }> = [
   { label: 'Info', tab: 'info' },
   { label: 'Evaluate', tab: 'evaluate' },
-  { label: 'Road', tab: null },
+  { label: 'Road', tab: 'road' },
   { label: 'Manipulate', tab: 'manipulate' },
   { label: 'Cut-off', tab: 'cutoff' },
 ];
@@ -49,6 +50,7 @@ export function renderInfo(root: HTMLElement, state: AppState, store: Store): vo
   if (state.panelTab === 'manipulate') renderManipulate(body, state, store);
   else if (state.panelTab === 'cutoff') renderCutoff(body, state, store);
   else if (state.panelTab === 'evaluate') renderEvaluate(body, state, store);
+  else if (state.panelTab === 'road') renderRoad(body, state, store);
   else renderInfoBody(body, state, store);
 }
 
