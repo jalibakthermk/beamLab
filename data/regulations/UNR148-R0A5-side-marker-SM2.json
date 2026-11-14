@@ -1,0 +1,63 @@
+{
+  "id": "UNR148-R0A5-side-marker-SM2",
+  "title": "UN R148 Rev.0 Amend.5: side marker lamps SM2 (Table 9)",
+  "source": "UN Regulation No. 148, Revision 0, Amendment 5 (E/ECE/TRANS/505/Rev.3/Add.147/Amend.5); para. 5.7.1, Table 9; Figure A3-VIII",
+  "revision": "Rev.0, Amendment 5",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {
+    "Igeo_min": 0.6
+  },
+  "aim": {
+    "modes": [
+      "as-loaded"
+    ],
+    "nominalCutoffV": null,
+    "reaim": {
+      "h": null,
+      "v": null
+    }
+  },
+  "elements": [
+    {
+      "type": "point",
+      "name": "HV",
+      "h": 0,
+      "v": 0,
+      "ref": "R148 para. 5.7.1, Table 9: minimum in the axis of reference",
+      "min": 0.6
+    },
+    {
+      "type": "zone",
+      "name": "Standard light distribution",
+      "polygon": [
+        [
+          -30,
+          -10
+        ],
+        [
+          30,
+          -10
+        ],
+        [
+          30,
+          10
+        ],
+        [
+          -30,
+          10
+        ]
+      ],
+      "ref": "R148 Table 9: minimum within the standard light distribution (Figure A3-VIII, H 30°L to 30°R, V 10°D to 10°U)",
+      "min": 0.6
+    },
+    {
+      "type": "global",
+      "name": "Imax",
+      "max": 25,
+      "ref": "R148 Table 9; para. 4.8.3.1 (b)"
+    }
+  ],
+  "notes": "Not encoded: for red side marker lamps, max 2.5∙10^-1 cd from 60° to 90° horizontally towards the front, ±20° vertically (5.7.1; depends on the lamp side); geometric visibility (Table A2-3); 5.7.4 allows checking only five points selected by the authority."
+}

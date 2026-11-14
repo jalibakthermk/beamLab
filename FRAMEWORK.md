@@ -261,7 +261,7 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /regs        schema.ts, engine.ts, reaim.ts
   /road        illuminance.ts            (shared with Road-illuminate)
 /data
-  /regulations *.json                    (each with source + revision; README with the format)
+  /regulations *.json                    (each with source + revision; README with the format; MIGRATION.md)
   /presets     cutoff/ (scan settings: schema.json, template.json); vehicle mounting presets (later)
 /ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
                manipulate.ts, cutoff.ts (Cut-off tab), evaluate.ts (Evaluate tab), plotly.ts (minimal Plotly bundle), report (later)
@@ -278,7 +278,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 5 and 6 implemented and tested (366 tests passing), awaiting review. No regulation data yet: data/regulations/ is empty until the source files are supplied (import/ was not present); cut-off sharpness limits are null for the same reason.
+Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 5 and 6 implemented and tested (366 tests passing), awaiting review. Regulation data: 29 files migrated from UN R148 Rev.0 Amend.5 and UN R149 Rev.0 Amend.6 (Class C and V passing beams, R148 signal functions), all verified: false; report in data/regulations/MIGRATION.md. Remaining R149 sections are not yet converted; cut-off sharpness limits stay null (not taken from the text yet).
 
 | Phase | Deliverable | Done when |
 |---|---|---|

@@ -1,0 +1,89 @@
+{
+  "id": "UNR148-R0A5-rear-fog-F1",
+  "title": "UN R148 Rev.0 Amend.5: rear fog lamps F1 (steady) (Table 11, Figure A3-VI)",
+  "source": "UN Regulation No. 148, Revision 0, Amendment 5 (E/ECE/TRANS/505/Rev.3/Add.147/Amend.5); para. 5.9.1, Table 11; Figure A3-VI (Annex 3, 2.6)",
+  "revision": "Rev.0, Amendment 5",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {},
+  "aim": {
+    "modes": [
+      "as-loaded"
+    ],
+    "nominalCutoffV": null,
+    "reaim": {
+      "h": null,
+      "v": null
+    }
+  },
+  "elements": [
+    {
+      "type": "point",
+      "name": "HV",
+      "h": 0,
+      "v": 0,
+      "ref": "R148 Table 11: minimum (para. 4.8.3.1 (a))",
+      "min": 150
+    },
+    {
+      "type": "line",
+      "name": "H axis 10°L to 10°R",
+      "from": [
+        -10,
+        0
+      ],
+      "to": [
+        10,
+        0
+      ],
+      "ref": "Figure A3-VI: 1.50∙10^2 cd minimum on the H axis",
+      "min": 150
+    },
+    {
+      "type": "line",
+      "name": "V axis 5°D to 5°U",
+      "from": [
+        0,
+        -5
+      ],
+      "to": [
+        0,
+        5
+      ],
+      "ref": "Figure A3-VI: 1.50∙10^2 cd minimum on the V axis",
+      "min": 150
+    },
+    {
+      "type": "zone",
+      "name": "Rhombus",
+      "polygon": [
+        [
+          -10,
+          0
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          10,
+          0
+        ],
+        [
+          0,
+          -5
+        ]
+      ],
+      "ref": "Figure A3-VI: 7.5∙10^1 cd minimum within the rhombus (checked \"if visual examination ... reveals substantial local variations\")",
+      "min": 75
+    },
+    {
+      "type": "global",
+      "name": "Imax",
+      "max": 300,
+      "ref": "R148 Table 11; para. 4.8.3.1 (b)"
+    }
+  ],
+  "notes": "Apparent surface max 140 cm² (5.9.3) is not a photometric element."
+}

@@ -1,0 +1,291 @@
+{
+  "id": "UNR149-R0A6-classC-passing-beam",
+  "title": "UN R149 Rev.0 Amend.6: Class C passing beam (Table 6, right-hand traffic)",
+  "source": "UN Regulation No. 149, Revision 0, Amendment 6 (E/ECE/TRANS/505/Rev.3/Add.148/Amend.6); para. 5.2.2, Table 6 (Parts A and C); aiming Annex 5 paras. 3.2.1.1 and 4.1",
+  "revision": "Rev.0, Amendment 6",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {},
+  "aim": {
+    "modes": [
+      "as-loaded",
+      "aim-to-cutoff",
+      "re-aim-search"
+    ],
+    "nominalCutoffV": -0.57,
+    "reaim": {
+      "h": 0.75,
+      "v": 0.25
+    }
+  },
+  "elements": [
+    {
+      "type": "zone",
+      "name": "Zone III",
+      "polygon": [
+        [
+          -8,
+          1
+        ],
+        [
+          -8,
+          4
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          2
+        ],
+        [
+          6,
+          1.5
+        ],
+        [
+          1.5,
+          1.5
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -4,
+          0
+        ]
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A (Zone III max); boundary from Part C",
+      "max": 625
+    },
+    {
+      "type": "point",
+      "name": "BR",
+      "h": 2.5,
+      "v": 1,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "max": 1750
+    },
+    {
+      "type": "line",
+      "name": "Segment BLL",
+      "from": [
+        -8,
+        0.57
+      ],
+      "to": [
+        -20,
+        0.57
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "max": 625
+    },
+    {
+      "type": "point",
+      "name": "B50L",
+      "h": -3.43,
+      "v": 0.57,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "max": 350
+    },
+    {
+      "type": "point",
+      "name": "P",
+      "h": -7,
+      "v": 0,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 63
+    },
+    {
+      "type": "point",
+      "name": "75 R",
+      "h": 1.15,
+      "v": -0.57,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 12100
+    },
+    {
+      "type": "point",
+      "name": "50 L",
+      "h": -3.43,
+      "v": -0.86,
+      "ref": "R149 para. 5.2.2, Table 6 Part A; note a: for a matched pair each lamp shall contribute at least 50% of the minimum (not encoded)",
+      "min": 5000,
+      "max": 37000
+    },
+    {
+      "type": "point",
+      "name": "50 V",
+      "h": 0,
+      "v": -0.86,
+      "ref": "R149 para. 5.2.2, Table 6 Part A; note a: for a matched pair each lamp shall contribute at least 50% of the minimum (not encoded)",
+      "min": 5100
+    },
+    {
+      "type": "point",
+      "name": "50 R",
+      "h": 1.72,
+      "v": -0.86,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 10100
+    },
+    {
+      "type": "line",
+      "name": "Segment 50",
+      "from": [
+        -6.84,
+        -0.86
+      ],
+      "to": [
+        6.84,
+        -0.86
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 2540
+    },
+    {
+      "type": "line",
+      "name": "Segment 40LL",
+      "from": [
+        -14,
+        -1.07
+      ],
+      "to": [
+        -9,
+        -1.07
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 850
+    },
+    {
+      "type": "point",
+      "name": "40L",
+      "h": -9,
+      "v": -1.07,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 2800
+    },
+    {
+      "type": "point",
+      "name": "40R",
+      "h": 9,
+      "v": -1.07,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 2800
+    },
+    {
+      "type": "line",
+      "name": "Segment 40RR",
+      "from": [
+        9,
+        -1.07
+      ],
+      "to": [
+        14,
+        -1.07
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 850
+    },
+    {
+      "type": "point",
+      "name": "25V",
+      "h": 0,
+      "v": -1.72,
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 2500
+    },
+    {
+      "type": "line",
+      "name": "Segment 25L",
+      "from": [
+        -16,
+        -1.72
+      ],
+      "to": [
+        -9,
+        -1.72
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 1180
+    },
+    {
+      "type": "line",
+      "name": "Segment 25",
+      "from": [
+        -9,
+        -1.72
+      ],
+      "to": [
+        9,
+        -1.72
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 1700
+    },
+    {
+      "type": "line",
+      "name": "Segment 25R",
+      "from": [
+        9,
+        -1.72
+      ],
+      "to": [
+        16,
+        -1.72
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 1180
+    },
+    {
+      "type": "line",
+      "name": "Segment 15",
+      "from": [
+        -20,
+        -2.86
+      ],
+      "to": [
+        20,
+        -2.86
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 425
+    },
+    {
+      "type": "line",
+      "name": "Segment 10",
+      "from": [
+        -4.5,
+        -4
+      ],
+      "to": [
+        2,
+        -4
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A",
+      "min": 500
+    },
+    {
+      "type": "line",
+      "name": "Segment 10 and below",
+      "from": [
+        -4.5,
+        -4
+      ],
+      "to": [
+        2,
+        -4
+      ],
+      "ref": "R149 para. 5.2.2, Table 6 Part A (\"0,8 x the actual measured value at 50R\"); \"and below\" is not encoded: only the segment at 4°D is checked",
+      "max": {
+        "percent": 80,
+        "of": {
+          "element": "50 R"
+        }
+      }
+    }
+  ],
+  "notes": "Table 6 is indicated for right-hand traffic; the text does not state that the values are mirrored for left-hand traffic, so mirroring is disabled. Not encoded: overhead-sign sums S50+S50LL+S50RR and S100+S100LL+S100RR (the schema has no sum element); \"Segment 10 and below\" below 4°D; matched-pair note a; note b (position lamps may be activated for the S-points); para. 5.2.3 (no lateral variations in zone III). Aim: nominal cut-off \"one per cent (0.57°) below the H-H line\" (Annex 5, 3.2.1.1); elbow kink \"basically within +/-0.5°\" of V-V (3.2.1.2 (c), not encoded); alignment change at most 0.75° left/right and 0.25° up/down (Annex 5, 4.1 (a))."
+}

@@ -1,0 +1,274 @@
+{
+  "id": "UNR148-R0A5-parking-forward",
+  "title": "UN R148 Rev.0 Amend.5: parking lamps, forward facing (77R) (Table 5)",
+  "source": "UN Regulation No. 148, Revision 0, Amendment 5 (E/ECE/TRANS/505/Rev.3/Add.147/Amend.5); para. 5.3.1, Table 5; Figure A3-I; para. 4.8.3.1",
+  "revision": "Rev.0, Amendment 5",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {
+    "Imin": 2,
+    "Igeo_min": 0.05
+  },
+  "aim": {
+    "modes": [
+      "as-loaded"
+    ],
+    "nominalCutoffV": null,
+    "reaim": {
+      "h": null,
+      "v": null
+    }
+  },
+  "elements": [
+    {
+      "type": "point",
+      "name": "HV",
+      "h": 0,
+      "v": 0,
+      "ref": "R148 para. 5.3.1, Table 5; para. 4.8.3.1 (a)",
+      "min": 2
+    },
+    {
+      "type": "point",
+      "name": "10U-5L",
+      "h": -5,
+      "v": 10,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "10U-5R",
+      "h": 5,
+      "v": 10,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-20L",
+      "h": -20,
+      "v": 5,
+      "ref": "Figure A3-I (Annex 3, 10% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 10,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-10L",
+      "h": -10,
+      "v": 5,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-V",
+      "h": 0,
+      "v": 5,
+      "ref": "Figure A3-I (Annex 3, 70% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 70,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-10R",
+      "h": 10,
+      "v": 5,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-20R",
+      "h": 20,
+      "v": 5,
+      "ref": "Figure A3-I (Annex 3, 10% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 10,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-10L",
+      "h": -10,
+      "v": 0,
+      "ref": "Figure A3-I (Annex 3, 35% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 35,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-5L",
+      "h": -5,
+      "v": 0,
+      "ref": "Figure A3-I (Annex 3, 90% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 90,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-5R",
+      "h": 5,
+      "v": 0,
+      "ref": "Figure A3-I (Annex 3, 90% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 90,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-10R",
+      "h": 10,
+      "v": 0,
+      "ref": "Figure A3-I (Annex 3, 35% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 35,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-20L",
+      "h": -20,
+      "v": -5,
+      "ref": "Figure A3-I (Annex 3, 10% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 10,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-10L",
+      "h": -10,
+      "v": -5,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-V",
+      "h": 0,
+      "v": -5,
+      "ref": "Figure A3-I (Annex 3, 70% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 70,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-10R",
+      "h": 10,
+      "v": -5,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-20R",
+      "h": 20,
+      "v": -5,
+      "ref": "Figure A3-I (Annex 3, 10% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 10,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "10D-5L",
+      "h": -5,
+      "v": -10,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "10D-5R",
+      "h": 5,
+      "v": -10,
+      "ref": "Figure A3-I (Annex 3, 20% of Imin); para. 4.8.3.1 (c)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "global",
+      "name": "Imax",
+      "max": 60,
+      "ref": "R148 para. 5.3.1, Table 5; para. 4.8.3.1 (b): maximum when used as a single lamp"
+    }
+  ],
+  "notes": "Not encoded: angles of geometric visibility (Annex 2 tables; they depend on the lamp side and mounting height; their minimum is kept as parameter Igeo_min), the uniformity rule of Annex 3 para. 1.2, the option to check the distribution only down to 5°D for mounting heights up to 750 mm (Annex 3, 1.1), and the CoP tables 12 and 13. A luminous intensity of 6.0∙10^1 cd is permitted for parking lamps directed to the rear incorporated with stop lamps below a plane 5° downward (5.3.1; not encoded)."
+}

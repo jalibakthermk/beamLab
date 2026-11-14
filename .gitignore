@@ -9,3 +9,6 @@ local-data/
 .DS_Store
 *.log
 .vite/
+
+# Regulation source documents for migration: never commit
+import/

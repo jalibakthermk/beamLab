@@ -1,0 +1,235 @@
+{
+  "id": "UNR148-R0A5-direction-indicator-6",
+  "title": "UN R148 Rev.0 Amend.5: direction indicator lamps category 6 (Table 8, Figure A3-IV)",
+  "source": "UN Regulation No. 148, Revision 0, Amendment 5 (E/ECE/TRANS/505/Rev.3/Add.147/Amend.5); para. 5.6.1, Table 8; Figure A3-IV (Annex 3, 2.4)",
+  "revision": "Rev.0, Amendment 5",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {
+    "Imin": 50,
+    "Imax_D": 140
+  },
+  "aim": {
+    "modes": [
+      "as-loaded"
+    ],
+    "nominalCutoffV": null,
+    "reaim": {
+      "h": null,
+      "v": null
+    }
+  },
+  "elements": [
+    {
+      "type": "point",
+      "name": "5out-H",
+      "h": 5,
+      "v": 0,
+      "ref": "R148 para. 5.6.1 (b), Table 8; Figure A3-IV: \"The direction H = 5° and V = 0°, corresponds to the minimum value\"",
+      "min": 50
+    },
+    {
+      "type": "point",
+      "name": "30U-5out",
+      "h": 5,
+      "v": 30,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 20% of Imin)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "30U-60out",
+      "h": 60,
+      "v": 30,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 20% of Imin)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "20U-30out",
+      "h": 30,
+      "v": 20,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 30% of Imin)",
+      "min": {
+        "percent": 30,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "15U-20out",
+      "h": 20,
+      "v": 15,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 30% of Imin)",
+      "min": {
+        "percent": 30,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "10U-5out",
+      "h": 5,
+      "v": 10,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 40% of Imin)",
+      "min": {
+        "percent": 40,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "10U-10out",
+      "h": 10,
+      "v": 10,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 40% of Imin)",
+      "min": {
+        "percent": 40,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-5out",
+      "h": 5,
+      "v": 5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 60% of Imin)",
+      "min": {
+        "percent": 60,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5U-10out",
+      "h": 10,
+      "v": 5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 60% of Imin)",
+      "min": {
+        "percent": 60,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-10out",
+      "h": 10,
+      "v": 0,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 80% of Imin)",
+      "min": {
+        "percent": 80,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "H-20out",
+      "h": 20,
+      "v": 0,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 40% of Imin)",
+      "min": {
+        "percent": 40,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-5out",
+      "h": 5,
+      "v": -5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 60% of Imin)",
+      "min": {
+        "percent": 60,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-10out",
+      "h": 10,
+      "v": -5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 60% of Imin)",
+      "min": {
+        "percent": 60,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-20out",
+      "h": 20,
+      "v": -5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 40% of Imin)",
+      "min": {
+        "percent": 40,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-30out",
+      "h": 30,
+      "v": -5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 20% of Imin)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "point",
+      "name": "5D-60out",
+      "h": 60,
+      "v": -5,
+      "ref": "Figure A3-IV (Annex 3, 2.4; 20% of Imin)",
+      "min": {
+        "percent": 20,
+        "of": {
+          "parameter": "Imin"
+        }
+      }
+    },
+    {
+      "type": "global",
+      "name": "Imax",
+      "max": 280,
+      "ref": "R148 para. 5.6.1, Table 8; para. 4.8.3.1 (b): single lamp"
+    }
+  ],
+  "notes": "ASSUMPTION: Figure A3-IV measures H towards the outer side of the vehicle; this file uses positive H = outer side (a lamp on the right side of the vehicle). For a lamp on the left side, mirror the dataset (flipH) before checking. Geometric visibility: N.A. in Table 8. A lamp marked \"D\" has Imax_D = 140 cd (parameter only)."
+}

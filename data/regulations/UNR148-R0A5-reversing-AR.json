@@ -1,0 +1,271 @@
+{
+  "id": "UNR148-R0A5-reversing-AR",
+  "title": "UN R148 Rev.0 Amend.5: reversing lamps AR (Table 10, Figure A3-V)",
+  "source": "UN Regulation No. 148, Revision 0, Amendment 5 (E/ECE/TRANS/505/Rev.3/Add.147/Amend.5); para. 5.8.1, Table 10; Figure A3-V (Annex 3, 2.5)",
+  "revision": "Rev.0, Amendment 5",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": {},
+  "aim": {
+    "modes": [
+      "as-loaded"
+    ],
+    "nominalCutoffV": null,
+    "reaim": {
+      "h": null,
+      "v": null
+    }
+  },
+  "elements": [
+    {
+      "type": "point",
+      "name": "HV",
+      "h": 0,
+      "v": 0,
+      "ref": "R148 para. 5.8.1, Table 10: minimum (para. 4.8.3.1 (a)); Figure A3-V gives 80 cd at HV",
+      "min": 80
+    },
+    {
+      "type": "point",
+      "name": "10U-10L",
+      "h": -10,
+      "v": 10,
+      "ref": "Figure A3-V (Annex 3, 2.5): 10 cd",
+      "min": 10
+    },
+    {
+      "type": "point",
+      "name": "10U-V",
+      "h": 0,
+      "v": 10,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "10U-10R",
+      "h": 10,
+      "v": 10,
+      "ref": "Figure A3-V (Annex 3, 2.5): 10 cd",
+      "min": 10
+    },
+    {
+      "type": "point",
+      "name": "5U-45L",
+      "h": -45,
+      "v": 5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "5U-10L",
+      "h": -10,
+      "v": 5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 20 cd",
+      "min": 20
+    },
+    {
+      "type": "point",
+      "name": "5U-V",
+      "h": 0,
+      "v": 5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 25 cd",
+      "min": 25
+    },
+    {
+      "type": "point",
+      "name": "5U-10R",
+      "h": 10,
+      "v": 5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 20 cd",
+      "min": 20
+    },
+    {
+      "type": "point",
+      "name": "5U-45R",
+      "h": 45,
+      "v": 5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "H-45L",
+      "h": -45,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "H-30L",
+      "h": -30,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 25 cd",
+      "min": 25
+    },
+    {
+      "type": "point",
+      "name": "H-10L",
+      "h": -10,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 50 cd",
+      "min": 50
+    },
+    {
+      "type": "point",
+      "name": "H-10R",
+      "h": 10,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 50 cd",
+      "min": 50
+    },
+    {
+      "type": "point",
+      "name": "H-30R",
+      "h": 30,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 25 cd",
+      "min": 25
+    },
+    {
+      "type": "point",
+      "name": "H-45R",
+      "h": 45,
+      "v": 0,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "5D-45L",
+      "h": -45,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "point",
+      "name": "5D-30L",
+      "h": -30,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 25 cd",
+      "min": 25
+    },
+    {
+      "type": "point",
+      "name": "5D-10L",
+      "h": -10,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 50 cd",
+      "min": 50
+    },
+    {
+      "type": "point",
+      "name": "5D-V",
+      "h": 0,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 80 cd",
+      "min": 80
+    },
+    {
+      "type": "point",
+      "name": "5D-10R",
+      "h": 10,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 50 cd",
+      "min": 50
+    },
+    {
+      "type": "point",
+      "name": "5D-30R",
+      "h": 30,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 25 cd",
+      "min": 25
+    },
+    {
+      "type": "point",
+      "name": "5D-45R",
+      "h": 45,
+      "v": -5,
+      "ref": "Figure A3-V (Annex 3, 2.5): 15 cd",
+      "min": 15
+    },
+    {
+      "type": "zone",
+      "name": "In or above the h-plane",
+      "polygon": [
+        [
+          -180,
+          0
+        ],
+        [
+          180,
+          0
+        ],
+        [
+          180,
+          90
+        ],
+        [
+          -180,
+          90
+        ]
+      ],
+      "ref": "R148 Table 10: maximum in or above the h-plane",
+      "max": 300
+    },
+    {
+      "type": "zone",
+      "name": "Below the h-plane down to 5°D",
+      "polygon": [
+        [
+          -180,
+          -5
+        ],
+        [
+          180,
+          -5
+        ],
+        [
+          180,
+          0
+        ],
+        [
+          -180,
+          0
+        ]
+      ],
+      "ref": "R148 Table 10: maximum below the h-plane down to 5°D",
+      "max": 600
+    },
+    {
+      "type": "zone",
+      "name": "Below 5°D",
+      "polygon": [
+        [
+          -180,
+          -90
+        ],
+        [
+          180,
+          -90
+        ],
+        [
+          180,
+          -5
+        ],
+        [
+          -180,
+          -5
+        ]
+      ],
+      "ref": "R148 Table 10: maximum below 5°D",
+      "max": 8000
+    }
+  ],
+  "notes": "The maximum zones cover every direction in their band (H -180° to 180°), so they are \"not evaluated\" unless the data covers the whole band. Not encoded: lamps installed only in pairs may be verified only up to 30° inwards with at least 2.5∙10^1 cd (5.8.1); the local-variation check of Annex 3, 1.2 (50% of the lower of two neighbouring minima)."
+}
