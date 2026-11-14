@@ -54,7 +54,31 @@ export interface Preview {
   report: RotationReport | null;
 }
 
-export type PanelTab = 'info' | 'manipulate';
+export type PanelTab = 'info' | 'manipulate' | 'cutoff';
+
+/** Cut-off tab settings. Defaults are tool defaults, not regulation values. */
+export interface CutoffSettings {
+  /** Selected preset (data/presets/cutoff); its non-null values override the fields below. */
+  presetId: string | null;
+  scanH: number;
+  vMin: number;
+  vMax: number;
+  step: number;
+  traffic: 'RHT' | 'LHT';
+  /** Trace H range and step. */
+  hMin: number;
+  hMax: number;
+  hStep: number;
+  /** Aim target: cut-off V in percent down or degrees. */
+  targetValue: number;
+  targetUnit: 'percent' | 'deg';
+  elbowAtZero: boolean;
+}
+
+export const DEFAULT_CUTOFF: CutoffSettings = {
+  presetId: null, scanH: -2, vMin: -3, vMax: 2, step: 0.05, traffic: 'RHT',
+  hMin: -8, hMax: 8, hStep: 0.5, targetValue: 1, targetUnit: 'percent', elbowAtZero: true,
+};
 
 export interface AppState {
   entries: Entry[];
@@ -63,6 +87,7 @@ export interface AppState {
   view: ViewSettings;
   preview: Preview | null;
   panelTab: PanelTab;
+  cutoff: CutoffSettings;
 }
 
 export type Listener = (state: AppState) => void;
@@ -83,6 +108,7 @@ export interface Store {
   addDerived(dataset: PhotometricDataset, name: string): Entry;
   rename(key: string, name: string): void;
   setPanelTab(tab: PanelTab): void;
+  setCutoff(patch: Partial<CutoffSettings>): void;
 }
 
 function load(key: string, name: string, text: string, flipH: boolean): Entry {
@@ -103,6 +129,7 @@ export function createStore(): Store {
     view: { mode: 'contour', scale: 'linear', levelsMode: 'auto', customLevels: [], marker: null },
     preview: null,
     panelTab: 'info',
+    cutoff: { ...DEFAULT_CUTOFF },
   };
   const listeners = new Set<Listener>();
   let counter = 0;
@@ -220,6 +247,10 @@ export function createStore(): Store {
 
     setPanelTab(tab) {
       set({ ...state, panelTab: tab });
+    },
+
+    setCutoff(patch) {
+      set({ ...state, cutoff: { ...state.cutoff, ...patch } });
     },
   };
 }

@@ -182,6 +182,21 @@ describe('derived datasets and preview (Phase 3)', () => {
   });
 });
 
+describe('cut-off settings (Phase 5)', () => {
+  it('have tool defaults (not regulation values) and can be changed; the Cut-off tab can be opened', () => {
+    const store = createStore();
+    expect(store.getState().cutoff).toEqual({
+      presetId: null, scanH: -2, vMin: -3, vMax: 2, step: 0.05, traffic: 'RHT',
+      hMin: -8, hMax: 8, hStep: 0.5, targetValue: 1, targetUnit: 'percent', elbowAtZero: true,
+    });
+    store.setCutoff({ traffic: 'LHT', scanH: 2 });
+    expect(store.getState().cutoff.traffic).toBe('LHT');
+    expect(store.getState().cutoff.scanH).toBe(2);
+    store.setPanelTab('cutoff');
+    expect(store.getState().panelTab).toBe('cutoff');
+  });
+});
+
 describe('ui/ keeps files in memory only', () => {
   const sources = import.meta.glob<string>('../ui/**/*.ts', { query: '?raw', import: 'default', eager: true });
   it.each(Object.entries(sources))('%s does not use browser storage', (_f, src) => {

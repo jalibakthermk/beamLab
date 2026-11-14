@@ -185,3 +185,12 @@ footer p { margin: 2px 0; }
 .report { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
 .report h3 { margin-top: 2px; }
 .note.warn { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+
+/* Phase 5: cut-off tab */
+.scan-plot { width: 100%; min-height: 250px; }
+.small { font-size: 0.78rem; }
+.field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.cut-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.cut-table th, .cut-table td { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
+.cut-table tbody th { color: var(--muted); font-weight: normal; width: 42%; }
+.leg-cut::before { border-top: 2px solid #e8590c; }

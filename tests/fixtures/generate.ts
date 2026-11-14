@@ -173,6 +173,39 @@ export const fineCutoffCd = (h: number, v: number): number => {
   return 50 + FINE_CUTOFF.peak * Math.exp(-((h - FINE_CUTOFF.h0) ** 2) / 50) * g;
 };
 
+/**
+ * Cut-off fixtures (Phase 5). log10 I = BASE − H_CURV·H² − A·(1 − s(V − c(H))), with the
+ * sigmoid s(x) = 1 / (1 + e^(x / W)): intensity drops by A decades across the cut-off at c(H).
+ * G(V) = log10 I(V) − log10 I(V + 0.1) = A·[s(V − c) − s(V + 0.1 − c)] is largest at
+ * V = c − 0.05 (the midpoint V + 0.05 sits on c), with Gmax = A·tanh(0.05 / (2W)).
+ */
+export const CUTOFF = { BASE: 4, H_CURV: 0.002, A: 2.5, W: 0.15, DELTA: 0.1 };
+export const sigmoid = (x: number): number => 1 / (1 + Math.exp(x / CUTOFF.W));
+export const cutoffGmax = (a = CUTOFF.A): number => a * Math.tanh(CUTOFF.DELTA / 2 / (2 * CUTOFF.W));
+/** Measured cut-off V for a sigmoid centred on c. */
+export const measuredCut = (c: number): number => c - CUTOFF.DELTA / 2;
+export const cutoffLog = (h: number, v: number, c: number): number =>
+  CUTOFF.BASE - CUTOFF.H_CURV * h * h - CUTOFF.A * (1 - sigmoid(v - c));
+
+/** Plain horizontal cut-off centred at V0 = -0.52, so the measured cut-off is at -0.57° (1% down). */
+export const PLAIN_V0 = -0.52;
+/** Kinked RHT beam: horizontal left of the elbow, 15° shoulder rising to the right. */
+export const KINK = { V0: -0.25, he: 1, angle: 15 };
+export const kinkC = (h: number): number => KINK.V0 + Math.max(0, h - KINK.he) * Math.tan((KINK.angle * Math.PI) / 180);
+/** Mirror image (LHT): elbow at H = -1, shoulder rising to the left. */
+export const kinkCMirror = (h: number): number => kinkC(-h);
+/** Noisy plain beam: ±0.01 decade noise and a weaker second step (1 decade) centred at V = +1. */
+export const NOISE = { amplitude: 0.01, secondA: 1, secondC: 1 };
+export const CUT_H = range(-12, 12, 0.5);
+export const CUT_V_FINE = range(-5, 3, 0.05);
+export const CUT_V_COARSE = range(-5, 3, 0.25);
+
+function noise(h: number, v: number): number {
+  // deterministic hash noise in [-1, 1]
+  const x = Math.sin(h * 12.9898 + v * 78.233) * 43758.5453;
+  return 2 * (x - Math.floor(x)) - 1;
+}
+
 export const MULTIPLIER_CASE = { multiplier: 2.5, ballast: 0.9, blpf: 1.1 };
 export const FUTURE_USE_FACTOR = 1.2;
 
@@ -267,6 +300,30 @@ export function buildFixtures(): Record<string, string> {
     cd: fineCutoffCd,
     decimals: 2,
   });
+
+  // Cut-off fixtures (Phase 5)
+  const cut = (name: string, v: number[], c: (h: number) => number, extra: (h: number, v: number) => number = () => 0, note = '') => {
+    f[name] = writeIes({
+      header: 'IESNA:LM-63-2002',
+      keywordLines: [...K2002, `[_FIXTURE] ${note}`],
+      type: 3,
+      h: CUT_H,
+      v,
+      cd: (hh, vv) => 10 ** (cutoffLog(hh, vv, c(hh)) + extra(hh, vv)),
+      decimals: 4,
+    });
+  };
+  cut('cutoff-plain-fine.ies', CUT_V_FINE, () => PLAIN_V0, undefined, 'sigmoid cut-off centred at V=-0.52 (measured -0.57), 0.05 deg V step');
+  cut('cutoff-plain-coarse.ies', CUT_V_COARSE, () => PLAIN_V0, undefined, 'same beam on a 0.25 deg V step');
+  cut('cutoff-kink-rht.ies', CUT_V_FINE, kinkC, undefined, 'RHT kinked cut-off: elbow at H=1, 15 deg shoulder to the right');
+  cut('cutoff-kink-lht.ies', CUT_V_FINE, kinkCMirror, undefined, 'LHT mirror: elbow at H=-1, 15 deg shoulder to the left');
+  cut(
+    'cutoff-plain-noisy.ies',
+    CUT_V_FINE,
+    () => PLAIN_V0,
+    (hh, vv) => NOISE.amplitude * noise(hh, vv) - NOISE.secondA * (1 - sigmoid(vv - NOISE.secondC)),
+    'plain cut-off with noise and a second, weaker step at V=+1',
+  );
 
   // Format variants: all describe VARIANT_H × VARIANT_V with variantCd
   f['format-lm63-1986.ies'] = variant(null, ['beamLab synthetic fixture', 'LM-63-1986 variant, no header line'], {

@@ -83,6 +83,16 @@ export function describeStep(p: Provenance | null): string {
       if (q['composed'] && c) s += `; composed with the previous rotation: total yaw ${num(c.yaw)}, pitch ${num(c.pitch)}, roll ${num(c.roll)} deg, resampled once from ${q['resampledFrom']}`;
       return s;
     }
+    case 'aim-to-cutoff': {
+      const r = (x: unknown) => (typeof x === 'number' ? x.toFixed(3) : String(x));
+      return (
+        `aim to cut-off: target V ${r(q['targetV'])} deg at H ${q['scanH']}${q['elbowAtZero'] ? ', elbow at H 0' : ''} (${q['traffic']}); ` +
+        `correction yaw ${r(q['yaw'])}, pitch ${r(q['pitch'])} deg in ${q['steps']} step(s), ` +
+        `${q['converged'] ? 'converged' : 'NOT converged'}, residual V ${r(q['residualV'])} deg` +
+        (q['residualH'] !== null && q['residualH'] !== undefined ? `, elbow H ${r(q['residualH'])} deg` : '') +
+        `; resampled once from ${q['resampledFrom']}`
+      );
+    }
     case 'resample':
       return `resample of ${a ?? p.inputs[0]} (bilinear)`;
     default:

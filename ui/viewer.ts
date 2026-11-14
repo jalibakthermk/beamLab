@@ -16,6 +16,8 @@ import {
 import { hSection, vSection, type Section } from '../core/analysis/section';
 import { sample } from '../core/geometry/interpolate';
 import { subtract, OperationError } from '../core/ops/arithmetic';
+import { fitSegments } from '../core/analysis/cutoff';
+import { analyse, cutoffSubjects } from './cutoff';
 import { el } from './dom';
 import { baseName, fmtCd, fmtDeg, fmtValue, unitFor, type Kind } from './format';
 import { DIVERGING, maskScale, NEGATIVE_LINE, POSITIVE_LINE, viridis, viridisScale } from './colors';
@@ -406,6 +408,38 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
           data.push({ type: 'scatter', mode: 'lines', x, y, line: { color: OVERLAY_COLOR, width: 1.6, dash: 'dash' }, hoverinfo: 'skip', showlegend: false });
         }
       }
+      // Cut-off tab: trace points, fitted segments, elbow and scan line (the comparison dataset dashed)
+      if (state.panelTab === 'cutoff' && kind === 'intensity') {
+        const subj = cutoffSubjects(state);
+        const sets: Array<{ d: PhotometricDataset; dash: string; color: string }> = [];
+        if (subj.main) sets.push({ d: subj.main, dash: 'solid', color: c.fg });
+        if (subj.other) sets.push({ d: subj.other, dash: 'dash', color: OVERLAY_COLOR });
+        for (const { d, dash, color } of sets) {
+          const a = analyse(d, state.cutoff);
+          const pts = a.trace.points.filter((p) => Number.isFinite(p.v));
+          data.push({
+            type: 'scatter', mode: 'markers', x: pts.map((p) => p.h), y: pts.map((p) => p.v), hoverinfo: 'skip', showlegend: false,
+            marker: { size: 5, color, symbol: dash === 'solid' ? 'circle' : 'circle-open' },
+          });
+          if (a.trace.fit) {
+            const seg = fitSegments(a.trace.fit, a.settings.traffic, a.settings.hMin, a.settings.hMax);
+            for (const line of [seg.horizontal, seg.shoulder]) {
+              data.push({ type: 'scatter', mode: 'lines', x: line.map((q) => q[0]), y: line.map((q) => q[1]), hoverinfo: 'skip', showlegend: false, line: { color: MARKER_COLOR, width: 2, dash } });
+            }
+            data.push({
+              type: 'scatter', mode: 'markers', x: [a.trace.fit.elbow.h], y: [a.trace.fit.elbow.v], hoverinfo: 'skip', showlegend: false,
+              marker: { size: 11, color: MARKER_COLOR, symbol: 'x-thin', line: { width: 2, color: MARKER_COLOR } },
+            });
+          }
+        }
+        if (subj.main) {
+          const a = analyse(subj.main, state.cutoff);
+          data.push({
+            type: 'scatter', mode: 'lines', hoverinfo: 'skip', showlegend: false,
+            x: [a.settings.scanH, a.settings.scanH], y: [a.settings.vMin, a.settings.vMax], line: { color: c.muted, width: 1, dash: 'dot' },
+          });
+        }
+      }
       const cov = ds.coverage;
       data.push({
         type: 'scatter', mode: 'lines', hoverinfo: 'skip', showlegend: false,
@@ -445,6 +479,7 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
           el('span', { class: 'leg leg-solid', text: `${ds.name}${previewDs ? ' (preview)' : ''}` }),
           ov ? el('span', { class: 'leg leg-dash', text: ovLabel }) : null,
           kind === 'difference' ? el('span', { class: 'leg leg-zero', text: 'zero line' }) : null,
+          state.panelTab === 'cutoff' && kind === 'intensity' ? el('span', { class: 'leg leg-cut', text: 'cut-off trace, fit and elbow (×); dotted: scan H' }) : null,
           el('span', { class: 'leg leg-cov', text: 'data coverage' }),
         ].filter((n): n is HTMLSpanElement => n !== null),
       );

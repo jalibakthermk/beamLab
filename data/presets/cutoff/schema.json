@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "beamlab/cutoff-preset",
+  "title": "beamLab cut-off scan preset",
+  "description": "Scan position, window and sharpness limits for one regulation or customer specification. Numeric values must be transcribed from the official text and verified; leave them null until then.",
+  "type": "object",
+  "required": ["id", "title", "source", "revision", "trafficSide", "scanH", "vWindow", "sharpness"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string" },
+    "source": { "type": ["string", "null"], "description": "Document and paragraph the values come from" },
+    "revision": { "type": ["string", "null"], "description": "Revision / amendment of that document" },
+    "trafficSide": { "enum": ["RHT", "LHT", null], "description": "Right-hand or left-hand traffic" },
+    "scanH": { "type": ["number", "null"], "description": "H of the vertical scan, degrees (positive = right)" },
+    "vWindow": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": ["number", "null"], "description": "Lower end of the search window, degrees" },
+        "max": { "type": ["number", "null"], "description": "Upper end of the search window, degrees" }
+      }
+    },
+    "sharpness": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": ["number", "null"], "description": "Minimum Gmax (log10 units per 0.1 degree)" },
+        "max": { "type": ["number", "null"], "description": "Maximum Gmax" }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

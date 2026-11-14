@@ -1,0 +1,11 @@
+{
+  "id": "template",
+  "title": "Template (no limits): copy, fill in from the regulation text, verify",
+  "source": null,
+  "revision": null,
+  "trafficSide": null,
+  "scanH": null,
+  "vWindow": { "min": null, "max": null },
+  "sharpness": { "min": null, "max": null },
+  "notes": "All numeric values are null on purpose. Transcribe them from the official regulation text and record the document, paragraph and revision."
+}

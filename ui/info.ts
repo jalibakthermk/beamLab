@@ -3,6 +3,7 @@ import { el } from './dom';
 import { baseName, fmtDeg, fmtLm, fmtStep, fmtValue, KIND_LABEL, type Kind } from './format';
 import { downloadText } from './download';
 import { renderManipulate } from './manipulate';
+import { renderCutoff } from './cutoff';
 import { exportIes, ExportError } from '../core/io/export';
 import { exportCsv } from '../core/io/csv';
 import { sample } from '../core/geometry/interpolate';
@@ -17,7 +18,7 @@ const TABS: Array<{ label: string; tab: PanelTab | null }> = [
   { label: 'Evaluate', tab: null },
   { label: 'Road', tab: null },
   { label: 'Manipulate', tab: 'manipulate' },
-  { label: 'Cut-off', tab: null },
+  { label: 'Cut-off', tab: 'cutoff' },
 ];
 
 function row(label: string, value: string | Node): HTMLElement[] {
@@ -45,6 +46,7 @@ export function renderInfo(root: HTMLElement, state: AppState, store: Store): vo
   const body = el('div', { class: 'pad' });
   root.replaceChildren(tabs, body);
   if (state.panelTab === 'manipulate') renderManipulate(body, state, store);
+  else if (state.panelTab === 'cutoff') renderCutoff(body, state, store);
   else renderInfoBody(body, state, store);
 }
 

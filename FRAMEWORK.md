@@ -1,6 +1,6 @@
 # IES Workbench — Development Framework
 
-Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 4. Author: Jalib Akther.
+Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 5. Author: Jalib Akther.
 
 This document is the instruction set for building the tool. It is written so it can be placed in the repo root (as `FRAMEWORK.md` or `CLAUDE.md`) and followed phase by phase with Claude Code.
 
@@ -217,11 +217,16 @@ Add: intensity + intensity with weights ≥ 0 gives intensity; a negative weight
 
 ### 6.2 Cut-off analysis
 
-- Vertical scan at a chosen H (default per the regulation selected), computing the gradient `G = log10 I(V) − log10 I(V + 0.1°)`.
-- Cut-off position = V of maximum G. Report G max and compare with the regulation's minimum and maximum sharpness limits (take the scan position and limits from the regulation text; store them in the regulation JSON, not in code).
-- Repeat the scan across a range of H to trace the cut-off line: horizontal part, elbow/kink position, shoulder angle, and straightness (deviation from a fitted line).
-- If the file's vertical step near the cut-off is coarser than 0.1°, show a clear warning: the gradient is then an interpolation artefact, not a measurement.
-- Outputs: scan plot (I and G vs V), cut-off line overlaid on the isocandela plot, summary table.
+`core/analysis/cutoff.ts`; aim in `core/ops/aim.ts`.
+
+- **Vertical scan** at a chosen H over a V window, at a configurable step (default 0.05°), computing `G(V) = log10 I(V) − log10 I(V + 0.1°)` from bilinear `sample()` on the full data. Intensity at or below zero gives G = NaN, never an error.
+- **Cut-off position** = V of maximum G inside the window, refined between scan nodes with a 3-point parabola (the scan node is reported too). With a symmetric edge this is 0.05° below the edge centre, by the definition of G. "No cut-off" when G has no positive maximum.
+- **Native V step**: the largest data V spacing inside the window is returned; above 0.1° a warning flag is set (G is then an interpolation artefact, not a measurement).
+- **Secondary maxima**: other local maxima of G at or above 30% of Gmax (configurable), at least 0.2° from a stronger one, are reported so a noisy or double-edged file does not silently give the wrong cut-off.
+- **Scan settings as data**: `data/presets/cutoff/*.json` (schema in `schema.json`): id, title, source, revision, traffic side, scan H, V window, minimum and maximum sharpness. Non-null preset values override the tab's settings. The template has every numeric field null; regulation values are entered only from the verified official text. With limits: pass/fail and margin (smallest distance to a limit); with null limits: values only.
+- **Cut-off line trace**: the scan repeated across an H range (default −8..8° at 0.5°; scans with Gmax < 0.05 count as "no cut-off"). A continuous two-segment ("hinge") fit with a breakpoint searched at 0.01° gives: mean V and slope of the horizontal part, its straightness (max and RMS deviation from the fit), elbow H and V, shoulder angle and RMS residual. The traffic side decides which side is horizontal (RHT: left of the elbow, shoulder rising to the right; LHT mirrored). If the residual exceeds 0.05° (stepped or Z-shaped cut-off), or the "horizontal" part is inclined more than 5° (usually the wrong traffic side), the fit is flagged and only the raw trace is returned.
+- **Aim to cut-off**: target cut-off V in degrees or percent down (−atan(p / 100); default 1% = −0.573°), optionally the elbow at H = 0 by yaw. Iterates analyse → rotate (section 6.1) → re-analyse until |cut-off V − target| ≤ 0.005° and |elbow H| ≤ 0.02°, or 8 steps. Rotations compose, so the original is resampled once. Returns the dataset, the correction (yaw, pitch) relative to the input, the residual and the step history; provenance records target and result. Bilinear resampling of a steep cut-off shifts the measured position by about 0.005°, which the iteration absorbs (the correction then differs from the purely geometric one by that amount).
+- **Outputs (Cut-off tab)**: scan plot (I on a log axis and G against V, cut-off marked, limit lines when available); trace, fitted segments and elbow over the isocandela view; summary table (cut-off V in degrees and percent, Gmax, sharpness result, straightness, elbow, shoulder angle, native V step, warnings). With an overlay (or the original during an aim preview), both scans, traces and a side-by-side table.
 
 ## 7. User interface
 
@@ -246,15 +251,15 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /io          ies.ts, csv.ts, export.ts, format.ts (shared number formatting)
   /model       dataset.ts, provenance.ts, version.ts
   /geometry    coords.ts, interpolate.ts, resample.ts, rotate.ts, flux.ts
-  /ops         arithmetic.ts, aim.ts (later)
+  /ops         arithmetic.ts, aim.ts
   /analysis    summary.ts, section.ts, levels.ts, display.ts, contours.ts, cutoff.ts
   /regs        engine.ts, schema.ts
   /road        illuminance.ts            (shared with Road-illuminate)
 /data
   /regulations *.json                    (each with source + revision)
-  /presets     vehicle mounting presets
+  /presets     cutoff/ (scan settings: schema.json, template.json); vehicle mounting presets (later)
 /ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
-               manipulate.ts, plotly.ts (minimal Plotly bundle), report (later)
+               manipulate.ts, cutoff.ts (Cut-off tab), plotly.ts (minimal Plotly bundle), report (later)
 /tests
   /fixtures    synthetic *.ies with known answers, and generate.ts that writes them
   *.test.ts
@@ -268,7 +273,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 3 and 4 implemented and tested (297 tests passing), awaiting review.
+Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phase 5 implemented and tested (328 tests passing), awaiting review; sharpness limits await verified regulation values.
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -293,6 +298,7 @@ Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still
 - **Viewer data**: every synthetic fixture is loaded through the same store the UI uses, and its peak must be at the known position; the asymmetric fixture's hot spot must be right and up in the plotted matrix too.
 - **Arithmetic**: hand-calculated cases for every operation; invariants A + B − B = A (1e-12 relative on identical grids, 1e-9 on different grids, compared on the merged grid), scale by k then 1/k = A (1e-12), divide(A, A) = 1 exactly above the floor, flux(A + B) = flux(A) + flux(B) on the same coverage; intersection, union and treat-as-zero; kind rules and IES export refusal; provenance content and chain.
 - **Rotation**: sign of yaw, pitch and roll on direction vectors and on the asymmetric fixture; pure yaw = exact H shift; H = 0 pitched by p → V + p exactly; H = 90°, V = 0 unchanged by pitch; roll 90° maps (h, 0) to (0, −h); Gaussian peak at the hand-computed position (within half a grid step); two rotations = one composed rotation (1e-9 of peak); rotate then inverse, composed: exact (1e-9 of peak); without composition, smooth beam on a 3° grid: within 0.1% of peak (measured 0.047%); flux on the extended grid within 0.05% (measured 0.004%).
+- **Cut-off**: sigmoid fixtures with an analytic answer (edge at V0 → cut-off at V0 − 0.05°, Gmax = A·tanh(0.05 / (2w))) on 0.05° and 0.25° grids, a kinked beam (elbow at H 1°, 15° shoulder) and its mirror, and a noisy beam with a second, weaker edge. Fine grid: position within 0.005° (measured 0.0001°), Gmax within 1% (measured 0.01%); kink: elbow within 0.02°, shoulder within 0.05° (measured exact); pitched by 0.33°: within 0.01° (measured 0.005°, resampling); aim: converges, residual ≤ 0.005°, correction within 0.01° of the geometric value.
 - **Regressions**: each value mismatch found against a reference gets a synthetic fixture and a test (e.g. `fine-cutoff-typeB.ies` for the Phase 2 resampling-step fix).
 - **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 
