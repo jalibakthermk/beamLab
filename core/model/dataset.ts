@@ -12,7 +12,11 @@ import type { Provenance } from './provenance';
  * Points outside coverage are NaN, never silently zero.
  */
 
-export type DatasetKind = 'intensity' | 'ratio' | 'mask';
+/**
+ * intensity: absolute cd (exportable as IES). difference: signed cd (A − B).
+ * ratio: dimensionless (A / B). mask: 0 or 1 (multiplier for windowing).
+ */
+export type DatasetKind = 'intensity' | 'difference' | 'ratio' | 'mask';
 export type PhotometricType = 'A' | 'B' | 'C';
 export type SourceFormat =
   | 'LM-63-1986'
@@ -20,6 +24,7 @@ export type SourceFormat =
   | 'LM-63-1995'
   | 'LM-63-2002'
   | 'LM-63-2019'
+  | 'derived'
   | 'synthetic';
 
 export interface Grid {

@@ -1,4 +1,4 @@
-import { createDataset, type Grid, type PhotometricDataset, type PhotometricType } from '../model/dataset';
+import { createDataset, type Coverage, type Grid, type PhotometricDataset, type PhotometricType } from '../model/dataset';
 import { makeProvenance } from '../model/provenance';
 import { anglesToVector, AXIS_ASSUMPTIONS, vectorToAngles, type AxisAssumptions } from './coords';
 import { ANGLE_EPS, bilinear, bracket, sample } from './interpolate';
@@ -207,4 +207,118 @@ export function resample(dataset: PhotometricDataset, target: Grid): Photometric
     meta: dataset.meta,
     provenance: makeProvenance('resample', [dataset.id], { targetGrid: target, interpolation: 'bilinear' }),
   });
+}
+
+// ── Common grid for binary operations (Phase 3) ───────────────────────────
+
+export type Extent = 'intersection' | 'union';
+
+export type GridErrorCode = 'NO_OVERLAP' | 'GRID_TOO_LARGE';
+
+export class GridError extends Error {
+  override name = 'GridError';
+  readonly code: GridErrorCode;
+  constructor(code: GridErrorCode, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export interface CommonGridOptions {
+  /** Default 'intersection'. */
+  extent?: Extent;
+  /** Nodes closer than this (degrees) are merged. Default 1e-6. */
+  tolerance?: number;
+  /** Largest merged grid allowed (nodes). Default 4 000 000. */
+  maxPoints?: number;
+}
+
+export interface CommonGridResult {
+  grid: Grid;
+  /** True when both inputs have the same grid: operate node by node, no resampling. */
+  identical: boolean;
+  /** Extent of the result: intersection or union of the input coverages. */
+  coverage: Coverage;
+}
+
+const DEFAULT_TOL = 1e-6;
+
+function sameAxis(a: number[], b: number[], tol: number): boolean {
+  return a.length === b.length && a.every((x, i) => Math.abs(x - b[i]!) <= tol);
+}
+
+/** Sorted union of both node sets inside [lo, hi], plus lo and hi; nodes closer than tol are merged. */
+export function mergeAxes(a: number[], b: number[], lo: number, hi: number, tol = DEFAULT_TOL): number[] {
+  const all = [...a, ...b, lo, hi].filter((x) => x >= lo - tol && x <= hi + tol).sort((x, y) => x - y);
+  const out: number[] = [];
+  for (const x of all) {
+    const c = Math.min(hi, Math.max(lo, x));
+    if (!out.length || c - out[out.length - 1]! > tol) out.push(c);
+  }
+  return out;
+}
+
+/**
+ * Grid on which a binary operation is evaluated. Identical input grids are
+ * kept as they are. Otherwise the grid is the merged set of both inputs'
+ * nodes inside the extent, so neither input loses resolution.
+ */
+export function commonGrid(a: PhotometricDataset, b: PhotometricDataset, options: CommonGridOptions = {}): CommonGridResult {
+  const extent = options.extent ?? 'intersection';
+  const tol = options.tolerance ?? DEFAULT_TOL;
+  const maxPoints = options.maxPoints ?? 4_000_000;
+  const ca = a.coverage;
+  const cb = b.coverage;
+  const coverage: Coverage =
+    extent === 'intersection'
+      ? { hMin: Math.max(ca.hMin, cb.hMin), hMax: Math.min(ca.hMax, cb.hMax), vMin: Math.max(ca.vMin, cb.vMin), vMax: Math.min(ca.vMax, cb.vMax) }
+      : { hMin: Math.min(ca.hMin, cb.hMin), hMax: Math.max(ca.hMax, cb.hMax), vMin: Math.min(ca.vMin, cb.vMin), vMax: Math.max(ca.vMax, cb.vMax) };
+  if (coverage.hMin > coverage.hMax + tol || coverage.vMin > coverage.vMax + tol) {
+    throw new GridError(
+      'NO_OVERLAP',
+      `The coverages do not overlap (A: H ${ca.hMin}..${ca.hMax}, V ${ca.vMin}..${ca.vMax}; ` +
+        `B: H ${cb.hMin}..${cb.hMax}, V ${cb.vMin}..${cb.vMax}). Use the union extent, or choose datasets that overlap.`,
+    );
+  }
+  if (sameAxis(a.grid.h, b.grid.h, tol) && sameAxis(a.grid.v, b.grid.v, tol)) {
+    return { grid: a.grid, identical: true, coverage };
+  }
+  const h = mergeAxes(a.grid.h, b.grid.h, coverage.hMin, coverage.hMax, tol);
+  const v = mergeAxes(a.grid.v, b.grid.v, coverage.vMin, coverage.vMax, tol);
+  const n = h.length * v.length;
+  if (n > maxPoints) {
+    throw new GridError(
+      'GRID_TOO_LARGE',
+      `The merged grid would have ${h.length} × ${v.length} = ${n.toLocaleString('en-US')} nodes, more than the limit of ` +
+        `${maxPoints.toLocaleString('en-US')}. Use the intersection extent, or resample one input onto the other's grid first.`,
+    );
+  }
+  return { grid: { h, v }, identical: false, coverage };
+}
+
+/**
+ * Values of a dataset on a grid: exact on its own grid (masked to its
+ * coverage), bilinear `sample()` otherwise. Where the dataset has no data
+ * (outside coverage, or NaN) the value is NaN, or 0 if zeroOutside is set.
+ */
+export function valuesOnGrid(ds: PhotometricDataset, grid: Grid, options: { zeroOutside?: boolean } = {}): Float64Array {
+  const nH = grid.h.length;
+  const out = new Float64Array(nH * grid.v.length);
+  const own = sameAxis(ds.grid.h, grid.h, DEFAULT_TOL) && sameAxis(ds.grid.v, grid.v, DEFAULT_TOL);
+  const c = ds.coverage;
+  for (let iv = 0; iv < grid.v.length; iv++) {
+    const v = grid.v[iv]!;
+    for (let ih = 0; ih < nH; ih++) {
+      const h = grid.h[ih]!;
+      let x: number;
+      if (own) {
+        const inside = h >= c.hMin - ANGLE_EPS && h <= c.hMax + ANGLE_EPS && v >= c.vMin - ANGLE_EPS && v <= c.vMax + ANGLE_EPS;
+        x = inside ? ds.values[iv * nH + ih]! : NaN;
+      } else {
+        x = sample(ds, h, v);
+      }
+      out[iv * nH + ih] = Number.isNaN(x) && options.zeroOutside ? 0 : x;
+    }
+  }
+  return out;
 }

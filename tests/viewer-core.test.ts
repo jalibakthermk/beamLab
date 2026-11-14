@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hSection, vSection } from '../core/analysis/section';
-import { autoLevels, decadeTicks, logFloor, niceStep, parseLevels } from '../core/analysis/levels';
+import { autoLevels, decadeTicks, displayScaleFor, divergingRange, levelsForKind, logFloor, niceStep, parseLevels, ratioLogRange, valueRange } from '../core/analysis/levels';
 import { displayGrid, strideIndices, toDisplay } from '../core/analysis/display';
 import { createDataset, type PhotometricDataset } from '../core/model/dataset';
 import { parseIes } from '../core/io/ies';
@@ -136,5 +136,38 @@ describe('display grid (core/analysis/display)', () => {
     expect(d.h[0]).toBe(-60);
     expect(d.h.at(-1)).toBeCloseTo(60, 9);
     expect(g.values.length).toBe(2402);
+  });
+});
+
+describe('display rules per dataset kind (core/analysis/levels)', () => {
+  it('valueRange: min, max, largest magnitude and smallest positive, ignoring NaN', () => {
+    expect(valueRange([-30, 0, NaN, 5, 0.2])).toEqual({ min: -30, max: 5, maxAbs: 30, minPositive: 0.2 });
+    expect(valueRange([NaN])).toEqual({ min: NaN, max: NaN, maxAbs: NaN, minPositive: NaN });
+  });
+
+  it('display scale: difference and mask always linear, ratio always log, intensity as chosen', () => {
+    expect(displayScaleFor('intensity', 'log')).toBe('log');
+    expect(displayScaleFor('difference', 'log')).toBe('linear');
+    expect(displayScaleFor('mask', 'log')).toBe('linear');
+    expect(displayScaleFor('ratio', 'linear')).toBe('log');
+  });
+
+  it('difference levels are symmetric about zero and include the zero contour', () => {
+    expect(levelsForKind('difference', valueRange([-1000, 950]), 'linear')).toEqual([-1000, -800, -600, -400, -200, 0, 200, 400, 600, 800]);
+  });
+
+  it('ratio levels are fixed multiplicative steps within the data range, including 1', () => {
+    expect(levelsForKind('ratio', valueRange([0.6, 1, 3]), 'log')).toEqual([0.8, 0.9, 1, 1.1, 1.25, 2]);
+  });
+
+  it('mask has one boundary level at 0.5; intensity uses the automatic levels', () => {
+    expect(levelsForKind('mask', valueRange([0, 1]), 'linear')).toEqual([0.5]);
+    expect(levelsForKind('intensity', valueRange([0, 20000]), 'linear')).toEqual(autoLevels(20000, 'linear'));
+  });
+
+  it('colour ranges: diverging centred on zero; ratio centred on 1 in log10, capped at ×100', () => {
+    expect(divergingRange(valueRange([-200, 50]))).toEqual({ zmin: -200, zmax: 200 });
+    expect(ratioLogRange(valueRange([0.5, 4]))).toEqual({ zmin: -Math.log10(4), zmax: Math.log10(4) });
+    expect(ratioLogRange(valueRange([1e-5, 1]))).toEqual({ zmin: -2, zmax: 2 });
   });
 });

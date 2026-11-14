@@ -16,10 +16,12 @@ export interface LoadedFile {
 }
 
 export interface Entry {
-  /** Unique per loaded file (the same file can be loaded twice). */
+  /** Unique per entry (the same file can be loaded twice). */
   key: string;
   name: string;
-  /** Source text, kept in memory so flipH can reload the file. */
+  /** 'file': loaded from an IES file. 'derived': result of an operation. */
+  origin: 'file' | 'derived';
+  /** Source text, kept in memory so flipH can reload the file ('' for derived datasets). */
   text: string;
   flipH: boolean;
   dataset: PhotometricDataset | null;
@@ -41,11 +43,21 @@ export interface ViewSettings {
   marker: { h: number; v: number } | null;
 }
 
+export interface Preview {
+  /** A result shown in the viewer but not (yet) in the workspace. */
+  dataset: PhotometricDataset;
+  summary: DatasetSummary;
+}
+
+export type PanelTab = 'info' | 'manipulate';
+
 export interface AppState {
   entries: Entry[];
   selectedKey: string | null;
   overlayKey: string | null;
   view: ViewSettings;
+  preview: Preview | null;
+  panelTab: PanelTab;
 }
 
 export type Listener = (state: AppState) => void;
@@ -60,15 +72,21 @@ export interface Store {
   setFlipH(key: string, flipH: boolean): void;
   setView(patch: Partial<Omit<ViewSettings, 'marker'>>): void;
   setMarker(marker: { h: number; v: number } | null): void;
+  /** Shows a result in the viewer without adding it to the workspace (null closes the preview). */
+  setPreview(dataset: PhotometricDataset | null): void;
+  /** Adds an operation result to the workspace under the given name, selects it and closes the preview. */
+  addDerived(dataset: PhotometricDataset, name: string): Entry;
+  rename(key: string, name: string): void;
+  setPanelTab(tab: PanelTab): void;
 }
 
 function load(key: string, name: string, text: string, flipH: boolean): Entry {
   try {
     const { dataset, warnings } = parseIes(text, { name, flipH });
-    return { key, name, text, flipH, dataset, summary: summarize(dataset), warnings, error: null };
+    return { key, name, origin: 'file', text, flipH, dataset, summary: summarize(dataset), warnings, error: null };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return { key, name, text, flipH, dataset: null, summary: null, warnings: [], error: message };
+    return { key, name, origin: 'file', text, flipH, dataset: null, summary: null, warnings: [], error: message };
   }
 }
 
@@ -78,6 +96,8 @@ export function createStore(): Store {
     selectedKey: null,
     overlayKey: null,
     view: { mode: 'contour', scale: 'linear', levelsMode: 'auto', customLevels: [], marker: null },
+    preview: null,
+    panelTab: 'info',
   };
   const listeners = new Set<Listener>();
   let counter = 0;
@@ -100,7 +120,7 @@ export function createStore(): Store {
       const added = files.map((f): Entry => {
         const key = `f${++counter}`;
         if (f.error !== undefined) {
-          return { key, name: f.name, text: '', flipH: false, dataset: null, summary: null, warnings: [], error: f.error };
+          return { key, name: f.name, origin: 'file', text: '', flipH: false, dataset: null, summary: null, warnings: [], error: f.error };
         }
         return load(key, f.name, f.text, false);
       });
@@ -129,7 +149,7 @@ export function createStore(): Store {
 
     select(key) {
       if (!usable(key)) return;
-      set({ ...state, selectedKey: key, overlayKey: state.overlayKey === key ? null : state.overlayKey });
+      set({ ...state, selectedKey: key, overlayKey: state.overlayKey === key ? null : state.overlayKey, preview: null });
     },
 
     setOverlay(key) {
@@ -140,7 +160,9 @@ export function createStore(): Store {
     setFlipH(key, flipH) {
       set({
         ...state,
-        entries: state.entries.map((e) => (e.key === key && e.flipH !== flipH ? load(e.key, e.name, e.text, flipH) : e)),
+        entries: state.entries.map((e) =>
+          e.key === key && e.origin === 'file' && e.flipH !== flipH ? load(e.key, e.name, e.text, flipH) : e,
+        ),
       });
     },
 
@@ -150,6 +172,44 @@ export function createStore(): Store {
 
     setMarker(marker) {
       set({ ...state, view: { ...state.view, marker } });
+    },
+
+    setPreview(dataset) {
+      set({ ...state, preview: dataset ? { dataset, summary: summarize(dataset) } : null });
+    },
+
+    addDerived(dataset, name) {
+      const clean = name.trim() || dataset.name;
+      const ds = { ...dataset, name: clean };
+      const entry: Entry = {
+        key: `d${++counter}`,
+        name: clean,
+        origin: 'derived',
+        text: '',
+        flipH: false,
+        dataset: ds,
+        summary: summarize(ds),
+        warnings: [],
+        error: null,
+      };
+      const overlayKey = state.overlayKey === entry.key ? null : state.overlayKey;
+      set({ ...state, entries: [...state.entries, entry], selectedKey: entry.key, overlayKey, preview: null });
+      return entry;
+    },
+
+    rename(key, name) {
+      const clean = name.trim();
+      if (!clean) return;
+      set({
+        ...state,
+        entries: state.entries.map((e) =>
+          e.key === key ? { ...e, name: clean, dataset: e.dataset ? { ...e.dataset, name: clean } : null } : e,
+        ),
+      });
+    },
+
+    setPanelTab(tab) {
+      set({ ...state, panelTab: tab });
     },
   };
 }

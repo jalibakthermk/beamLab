@@ -25,6 +25,7 @@ const EXPECTED: Record<string, Expectation> = {
   'same-beam-typeB.ies': { at: SAME_BEAM_PEAK, tol: 3 },
   'same-beam-typeC.ies': { at: SAME_BEAM_PEAK, tol: 3 },
   'uniform-limited-typeA.ies': { uniform: UNIFORM_LIMITED.cd },
+  'fine-cutoff-typeB.ies': { at: { h: 2, v: -0.6 } },
   'uniform-sphere-typeC.ies': { uniform: UNIFORM_SPHERE_CD },
   // Variants of the small grid: variantCd peaks at H = 10, V = 5
   'format-lm63-1986.ies': { at: { h: 10, v: 5 } },

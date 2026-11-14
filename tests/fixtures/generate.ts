@@ -160,6 +160,19 @@ export function dirTypeC(c: number, g: number): [number, number, number] {
   return [Math.sin(g * D2R) * Math.cos(c * D2R), -Math.sin(g * D2R) * Math.sin(c * D2R), -Math.cos(g * D2R)];
 }
 
+/**
+ * Smooth low beam with a sharp cut-off, peak on a file node at (H 2, V -0.6).
+ * Layout copies a real automotive Type B file: H -90..90 at 2°, V -40..40 with a
+ * 0.1° band from -10 to 5. Regression fixture for the Phase 2 resampling-step fix.
+ */
+export const FINE_CUTOFF = { peak: 36000, h0: 2, v0: -0.6 };
+export const fineCutoffH = range(-90, 90, 2);
+export const fineCutoffV = [...range(-40, -11, 1), ...range(-10, 5, 0.1), ...range(6, 40, 1)];
+export const fineCutoffCd = (h: number, v: number): number => {
+  const g = v <= FINE_CUTOFF.v0 ? Math.exp((v - FINE_CUTOFF.v0) / 1.5) : Math.exp(-(v - FINE_CUTOFF.v0) * 6);
+  return 50 + FINE_CUTOFF.peak * Math.exp(-((h - FINE_CUTOFF.h0) ** 2) / 50) * g;
+};
+
 export const MULTIPLIER_CASE = { multiplier: 2.5, ballast: 0.9, blpf: 1.1 };
 export const FUTURE_USE_FACTOR = 1.2;
 
@@ -243,6 +256,16 @@ export function buildFixtures(): Record<string, string> {
     v: range(0, 180, 3),
     cd: (c, g) => sameBeam(...dirTypeC(c, g)),
     decimals: 4,
+  });
+
+  f['fine-cutoff-typeB.ies'] = writeIes({
+    header: 'IESNA:LM-63-2002',
+    keywordLines: [...K2002, '[_FIXTURE] Type B low beam, 0.1 deg cut-off band, peak node at H=2, V=-0.6'],
+    type: 2,
+    h: fineCutoffH,
+    v: fineCutoffV,
+    cd: fineCutoffCd,
+    decimals: 2,
   });
 
   // Format variants: all describe VARIANT_H × VARIANT_V with variantCd

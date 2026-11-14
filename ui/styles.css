@@ -157,3 +157,28 @@ footer p { margin: 2px 0; }
 .probe-row { display: flex; gap: 6px; }
 .probe-input { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; width: 6em; }
 .probe-out { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; }
+
+/* Phase 3: kinds, provenance, manipulate, preview */
+.kind { font-size: 0.7rem; padding: 0 5px; border-radius: 4px; border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.03em; }
+.kind-difference { border-color: #b2182b; color: #b2182b; }
+.kind-ratio { border-color: #2166ac; color: #2166ac; }
+.kind-mask { border-color: var(--muted); }
+@media (prefers-color-scheme: dark) { .kind-difference { color: #f4a582; border-color: #f4a582; } .kind-ratio { color: #92c5de; border-color: #92c5de; } }
+.chain-details { grid-column: 1 / -1; font-size: 0.75rem; padding: 0 4px 2px; }
+.chain-details summary { cursor: pointer; color: var(--muted); }
+.chain { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.72rem; background: var(--bg); border-radius: 4px; padding: 6px; margin: 4px 0; }
+.manipulate { display: flex; flex-direction: column; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; color: var(--muted); }
+.field select, .field input, .name-input {
+  font: inherit; font-size: 0.9rem; color: var(--fg); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; min-width: 0;
+}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.policy { border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; margin: 0; }
+.policy legend { font-size: 0.8rem; color: var(--muted); }
+.note { font-size: 0.8rem; background: var(--warn-bg); color: var(--fg); padding: 6px 8px; border-radius: 6px; }
+.summary-text { font-size: 0.85rem; }
+.summary-error { color: var(--err); }
+.title-input { font-weight: 600; font-size: 1rem; width: 100%; margin-bottom: 6px; }
+.preview-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; font-size: 0.85rem; }
+.preview-bar .name-input { flex: 1; min-width: 140px; }
+.leg-zero::before { border-top: 3px solid var(--fg); }

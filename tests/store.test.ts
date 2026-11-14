@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from '../ui/state/store';
+import { subtract } from '../core/ops/arithmetic';
 import { fixture } from './load-fixture';
 
 const file = (name: string) => ({ name, text: fixture(name) });
@@ -11,6 +12,8 @@ describe('app state store', () => {
     expect(s.selectedKey).toBeNull();
     expect(s.overlayKey).toBeNull();
     expect(s.view).toEqual({ mode: 'contour', scale: 'linear', levelsMode: 'auto', customLevels: [], marker: null });
+    expect(s.preview).toBeNull();
+    expect(s.panelTab).toBe('info');
   });
 
   it('loads several files at once, keeps warnings per file, and selects the first loaded one', () => {
@@ -101,6 +104,68 @@ describe('app state store', () => {
     unsubscribe();
     store.setMarker(null);
     expect(listener).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('derived datasets and preview (Phase 3)', () => {
+  const setup = () => {
+    const store = createStore();
+    store.addFiles([file('format-lm63-2002.ies'), file('format-lm63-1995.ies')]);
+    const [a, b] = store.getState().entries;
+    return { store, a: a!, b: b! };
+  };
+
+  it('previews a result without adding it to the workspace', () => {
+    const { store, a, b } = setup();
+    const d = subtract(a.dataset!, b.dataset!);
+    store.setPreview(d);
+    expect(store.getState().preview?.dataset).toBe(d);
+    expect(store.getState().preview?.summary.maxIntensity).toBe(0);
+    expect(store.getState().entries).toHaveLength(2);
+    store.setPreview(null);
+    expect(store.getState().preview).toBeNull();
+  });
+
+  it('adds a derived dataset with an editable name, selects it, and clears the preview', () => {
+    const { store, a, b } = setup();
+    const d = subtract(a.dataset!, b.dataset!);
+    store.setPreview(d);
+    const e = store.addDerived(d, 'my difference');
+    const st = store.getState();
+    expect(st.entries).toHaveLength(3);
+    expect(e.origin).toBe('derived');
+    expect(e.name).toBe('my difference');
+    expect(e.dataset?.name).toBe('my difference');
+    expect(e.dataset?.kind).toBe('difference');
+    expect(st.selectedKey).toBe(e.key);
+    expect(st.preview).toBeNull();
+    expect(d.name).not.toBe('my difference'); // the preview object itself is not modified
+  });
+
+  it('renames an entry and its dataset', () => {
+    const { store, a } = setup();
+    store.rename(a.key, 'low beam');
+    expect(store.getState().entries[0]!.name).toBe('low beam');
+    expect(store.getState().entries[0]!.dataset?.name).toBe('low beam');
+    store.rename(a.key, '   ');
+    expect(store.getState().entries[0]!.name).toBe('low beam'); // empty names are ignored
+  });
+
+  it('flipH does not apply to derived datasets; file entries are marked as files', () => {
+    const { store, a, b } = setup();
+    expect(a.origin).toBe('file');
+    const e = store.addDerived(subtract(a.dataset!, b.dataset!), 'd');
+    store.setFlipH(e.key, true);
+    expect(store.getState().entries.find((x) => x.key === e.key)?.flipH).toBe(false);
+  });
+
+  it('selecting a dataset closes the preview; the panel tab can be switched', () => {
+    const { store, a, b } = setup();
+    store.setPreview(subtract(a.dataset!, b.dataset!));
+    store.select(b.key);
+    expect(store.getState().preview).toBeNull();
+    store.setPanelTab('manipulate');
+    expect(store.getState().panelTab).toBe('manipulate');
   });
 });
 

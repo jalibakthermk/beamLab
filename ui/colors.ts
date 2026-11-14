@@ -32,3 +32,16 @@ export function viridis(t: number): string {
 export function viridisScale(end: number, steps = 12): Array<[number, string]> {
   return Array.from({ length: steps + 1 }, (_, i) => [i / steps, viridis((i / steps) * end)] as [number, string]);
 }
+
+/** Diverging blue–white–red (ColorBrewer RdBu, reversed: negative blue, positive red). Display only. */
+export const DIVERGING: Array<[number, string]> = [
+  [0, '#053061'], [0.1, '#2166ac'], [0.2, '#4393c3'], [0.3, '#92c5de'], [0.4, '#d1e5f0'], [0.5, '#f7f7f7'],
+  [0.6, '#fddbc7'], [0.7, '#f4a582'], [0.8, '#d6604d'], [0.9, '#b2182b'], [1, '#67001f'],
+];
+export const NEGATIVE_LINE = '#2166ac';
+export const POSITIVE_LINE = '#b2182b';
+
+/** Two-tone scale for masks: 0 grey, 1 accent. */
+export function maskScale(accent: string): Array<[number, string]> {
+  return [[0, '#bdbdb8'], [0.4999, '#bdbdb8'], [0.5, accent], [1, accent]];
+}

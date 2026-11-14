@@ -28,3 +28,32 @@ export function fmtLm(x: number): string {
 export function baseName(name: string): string {
   return name.replace(/\.[^.]+$/, '');
 }
+
+export type Kind = 'intensity' | 'difference' | 'ratio' | 'mask';
+
+/** Unit shown after a value of this kind ('' for dimensionless). */
+export function unitFor(kind: Kind): string {
+  return kind === 'intensity' || kind === 'difference' ? 'cd' : '';
+}
+
+/** Value with its unit, e.g. "1,234 cd", "-56.2 cd", "1.234", "1 (inside)". */
+export function fmtValue(kind: Kind, x: number): string {
+  if (!Number.isFinite(x)) return 'no data';
+  switch (kind) {
+    case 'intensity':
+      return `${fmtCd(x)} cd`;
+    case 'difference':
+      return `${x > 0 ? '+' : ''}${fmtCd(x)} cd`;
+    case 'ratio':
+      return x.toPrecision(4);
+    case 'mask':
+      return x >= 0.5 ? '1 (inside)' : '0 (outside)';
+  }
+}
+
+export const KIND_LABEL: Record<Kind, string> = {
+  intensity: 'intensity (cd)',
+  difference: 'difference (signed cd)',
+  ratio: 'ratio (no unit)',
+  mask: 'mask (0 / 1)',
+};

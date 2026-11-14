@@ -1,5 +1,6 @@
 import type { Keyword, PhotometricDataset } from '../model/dataset';
 import { formatAngle, formatValue } from './format';
+import { provenanceChain } from '../model/provenance';
 
 /**
  * IES LM-63-2002 writer, always Type A (photometric type 3), TILT=NONE,
@@ -79,7 +80,11 @@ export function exportIes(dataset: PhotometricDataset, options: IesExportOptions
   const kws: Keyword[] = meta.keywords.map((k) => (k.key === 'LABEL' ? { key: 'OTHER', value: k.value } : k));
   if (!kws.some((k) => k.key === 'TEST')) kws.unshift({ key: 'TEST', value: 'not specified' });
   if (!kws.some((k) => k.key === 'MANUFAC')) kws.splice(1, 0, { key: 'MANUFAC', value: 'not specified' });
-  if (dataset.provenance) kws.push({ key: '_PROVENANCE', value: JSON.stringify(dataset.provenance) });
+  if (dataset.provenance) {
+    // Readable chain back to the source files, then the same as machine-readable JSON
+    kws.push({ key: '_PROVENANCE_CHAIN', value: provenanceChain(dataset) });
+    kws.push({ key: '_PROVENANCE', value: JSON.stringify(dataset.provenance) });
+  }
 
   const dims = meta.dimensions;
   const units = dims?.units === 'feet' ? 1 : 2;

@@ -1,6 +1,7 @@
 import type { AppState, Entry, Store } from './state/store';
 import { el } from './dom';
-import { fmtCd, fmtStep } from './format';
+import { fmtStep, fmtValue, type Kind } from './format';
+import { provenanceChain } from '../core/model/provenance';
 
 function badge(entry: Entry): HTMLElement | null {
   const warn = entry.warnings.filter((w) => w.severity === 'warning').length;
@@ -36,14 +37,16 @@ export function renderWorkspace(root: HTMLElement, state: AppState, store: Store
       continue;
     }
     const s = e.summary!;
+    const kind = e.dataset.kind as Kind;
     const overlayBox = el('input', {
       attrs: { type: 'checkbox', 'aria-label': `Overlay ${e.name}` },
       on: { change: (ev) => store.setOverlay((ev.target as HTMLInputElement).checked ? e.key : null) },
     });
     overlayBox.checked = e.key === state.overlayKey;
     overlayBox.disabled = selected;
+    const peak = kind === 'mask' ? 'mask' : `max ${fmtValue(kind, s.maxIntensity)}`;
     list.append(
-      el('li', { class: selected ? 'ds-row selected' : 'ds-row' }, [
+      el('li', { class: selected && !state.preview ? 'ds-row selected' : 'ds-row' }, [
         el(
           'button',
           {
@@ -54,7 +57,8 @@ export function renderWorkspace(root: HTMLElement, state: AppState, store: Store
           [
             el('span', { class: 'ds-name', text: e.name + (e.flipH ? ' (mirrored)' : '') }),
             el('span', { class: 'ds-meta' }, [
-              el('span', { text: `${fmtCd(s.maxIntensity)} cd` }),
+              el('span', { class: `kind kind-${kind}`, text: kind }),
+              el('span', { text: peak }),
               el('span', { text: `step ${fmtStep(s.step.h)} × ${fmtStep(s.step.v)}` }),
               badge(e),
             ]),
@@ -71,6 +75,10 @@ export function renderWorkspace(root: HTMLElement, state: AppState, store: Store
           attrs: { 'aria-label': `Remove ${e.name}` },
           on: { click: () => store.remove(e.key) },
         }),
+        el('details', { class: 'chain-details' }, [
+          el('summary', { text: e.origin === 'derived' ? 'Provenance chain' : 'Provenance' }),
+          el('pre', { class: 'chain', text: provenanceChain(e.dataset) }),
+        ]),
       ]),
     );
   }

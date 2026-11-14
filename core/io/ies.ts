@@ -6,6 +6,7 @@ import {
   type SourceFormat,
 } from '../model/dataset';
 import { makeProvenance } from '../model/provenance';
+import { fnv1a } from '../model/hash';
 import { AXIS_ASSUMPTIONS, type AxisAssumptions } from '../geometry/coords';
 import { resampleToTypeA } from '../geometry/resample';
 
@@ -111,14 +112,6 @@ const LIMITS: Record<PhotometricType, [number, number, number, number]> = {
   C: [0, 360, 0, 180],
 };
 
-function fnv1a(text: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, '0');
-}
 
 function detectFormat(firstLine: string, warn: (w: IesWarning) => void): { format: SourceFormat; hasHeader: boolean } {
   const t = firstLine.trim();
@@ -221,7 +214,7 @@ export function parseIes(text: string, options: IesParseOptions = {}): IesParseR
     const m = /^\[([^\]]*)\]\s?(.*)$/.exec(t);
     if (m && KEYWORD_FORMATS.includes(format)) {
       const key = m[1]!.trim().toUpperCase();
-      const value = m[2]!.trim();
+      const value = m[2]!.trimEnd(); // keep the value's own leading spaces (e.g. indented text)
       const prev = keywords[keywords.length - 1];
       if (key === 'MORE' && prev) prev.value += `\n${value}`;
       else keywords.push({ key, value });
