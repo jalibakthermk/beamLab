@@ -1,6 +1,6 @@
 # IES Workbench — Development Framework
 
-Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 3. Author: Jalib Akther.
+Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 4. Author: Jalib Akther.
 
 This document is the instruction set for building the tool. It is written so it can be placed in the repo root (as `FRAMEWORK.md` or `CLAUDE.md`) and followed phase by phase with Claude Code.
 
@@ -71,6 +71,7 @@ Rules:
 - Symmetric files are expanded to the full range on load: Type A/B with H 0..90 are mirrored to −90..90; Type C single-plane (rotational), 0..90 (quadrant), 0..180 and 90..270 (bilateral) are expanded to C 0..360 before conversion.
 - Points without data are `NaN`, never silently zero. **`NaN` is the authoritative mask**; `coverage` is only the bounding box. For files converted from Type B or C the covered region is not a rectangle, so `NaN` can occur inside `coverage`. Each operation states its policy for `NaN`.
 - Loading records provenance with `op: 'import'` (format, photometric type, TILT, flipH, symmetry expansion, and for Type B/C the conversion step, interpolation and axis assumptions).
+- A rotation result also carries a runtime-only link `rotationOf` (original dataset and total rotation matrix; never exported), so a further rotation composes with it instead of resampling a resampled dataset.
 - Operations record `op`, input ids, and in `params` the input names and every parameter (weights, scale factor, extent, coverage policy, denominator floor, whether resampling happened, result grid size). `parents` holds a snapshot of each input's id, name, kind and provenance, so the full chain back to the source files survives even when inputs are removed from the workspace. `provenanceChain(dataset)` (`model/provenance.ts`) returns that chain as readable ASCII text.
 
 ### 3.2 Geometry service
@@ -191,15 +192,28 @@ Common grid (`commonGrid`):
 | Window mask | 1 inside H/V limits, 0 outside, on a chosen grid | Isolate a region (multiply by it) | `kind: 'mask'` |
 
 Add: intensity + intensity with weights ≥ 0 gives intensity; a negative weight or a difference input gives a difference. Ratio and mask inputs cannot be added or subtracted.
-| Rotate / aim | 3D rotation of the distribution: yaw, pitch, roll | Re-aim, mounting tilt, levelling studies | See below |
+| Rotate / aim | 3D rotation of the distribution: yaw, pitch, roll | Re-aim, mounting tilt, levelling studies | True rotation on the sphere; see 6.1 |
 | Cut-off analysis | See 6.2 | Low beam sharpness and position | Needs fine vertical resolution |
 
 ### 6.1 Rotate / aim
 
-- Implement as a true rotation on the sphere: for each target grid direction, apply the inverse rotation to its direction vector, convert back to angles, and sample the source. Never implement aim as a simple shift of the V axis: that is only exact on the H = 0 line.
-- In the Type A convention, yaw about the vertical axis is an exact H shift; use this as a test case.
-- Report how much of the target grid fell outside source coverage after rotation.
-- Provide "aim to cut-off" as a convenience: run cut-off analysis, then rotate so the cut-off sits at the chosen nominal position.
+`core/geometry/rotate.ts`. Conventions (axes as in 3.1: x forward, y right, z up; angles in degrees):
+
+| Angle | Axis | Positive direction | Matrix |
+|---|---|---|---|
+| Yaw ψ | z | beam moves right (+H) | `[[cψ, −sψ, 0], [sψ, cψ, 0], [0, 0, 1]]` |
+| Pitch θ | y | beam moves up (+V) | `[[cθ, 0, −sθ], [0, 1, 0], [sθ, 0, cθ]]` |
+| Roll φ | x | clockwise as seen from the lamp looking forward (up → right → down) | `[[1, 0, 0], [0, cφ, sφ], [0, −sφ, cφ]]` |
+
+- **Order**: roll first, then pitch, then yaw: `R = Yaw · Pitch · Roll`. R moves beam directions: a feature at direction d is at R·d after rotation.
+- **True rotation on the sphere**: for each target node t, the value is the source sampled (bilinear) at Rᵀ·t. Never a shift of the V axis: that is only exact on the H = 0 line (pitching H 30°, V 0° by 5° does not give V 5°).
+- **Fast path**: when the total rotation is a pure yaw (and H stays within ±180°), the result is an exact shift of the H grid: no resampling, values unchanged.
+- **Target grid**: the input's grid (default) or the input's grid extended at its edge spacing to contain the rotated coverage (size guard: 4 million nodes). Target nodes whose source direction is outside the source coverage are `NaN`.
+- **No accumulated blur**: if the input is itself a rotation result, the matrices are composed and the original is resampled once. Provenance records the requested and the composed angles. (Only direct rotation chains compose; a rotated dataset that went through another operation is resampled as it is.)
+- **Inputs**: degrees; pitch may be entered as inclination in percent, converted with atan(p / 100) (1% = 0.573°).
+- **Result**: same kind as the input; provenance records the angles, order, target grid option, interpolation, composition and the total matrix.
+- **Report** with every rotation: share of target nodes outside the source coverage; flux before and after and the change in percent; peak value and position before and after. The UI warns when more than 5% of the target grid has no source data.
+- "Aim to cut-off" (run cut-off analysis, then rotate so the cut-off sits at the chosen nominal position) is deferred to Phase 5.
 
 ### 6.2 Cut-off analysis
 
@@ -254,7 +268,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phase 3 implemented and tested (272 tests passing), awaiting review.
+Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 3 and 4 implemented and tested (297 tests passing), awaiting review.
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -262,8 +276,8 @@ Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still
 | 1. Core I/O and model | IES parser, canonical model, Type A/B/C conversion, flux, export | Round-trip (load → export → load) reproduces values; A/B/C round-trips and anchor tests pass |
 | 2. Viewer | Workspace, isocandela and false-colour plots, sections, cursor | A real file displays correctly against a reference viewer |
 | 3. Arithmetic | Add, subtract, multiply, divide with provenance; difference view in the viewer | Synthetic cases match hand calculation; coverage/NaN rules hold |
-| 4. Rotate / aim | 3D rotation and resampling | Yaw equals exact H shift; rotate then inverse-rotate returns the original within tolerance; flux conserved |
-| 5. Cut-off analysis | Gradient scan, cut-off line trace | Synthetic beam with a known cut-off position and gradient is recovered |
+| 4. Rotate / aim | 3D rotation and resampling ("aim to cut-off" moved to Phase 5) | Yaw equals exact H shift; rotate then inverse-rotate returns the original within tolerance; flux conserved |
+| 5. Cut-off analysis | Gradient scan, cut-off line trace, "aim to cut-off" | Synthetic beam with a known cut-off position and gradient is recovered |
 | 6. Regulation engine | JSON schema, engine, overlay, first two regulations migrated from PIRA and beamTolerance | Results match those tools on the same files |
 | 7. Road performance | Shared road module, isolux view, requirements check | Matches Road-illuminate output on the same inputs |
 | 8. Report and polish | Printable report, presets, error messages, docs | A full evaluation can be exported and understood by someone else |
@@ -278,6 +292,7 @@ Status (2026-11-14): Phases 0–2 done and deployed (Type B/C axis mapping still
 - **core/ purity**: a test and a separate type-check of `core/` without DOM types fail if anything under `core/` imports from `ui/` or uses `document` / `window`.
 - **Viewer data**: every synthetic fixture is loaded through the same store the UI uses, and its peak must be at the known position; the asymmetric fixture's hot spot must be right and up in the plotted matrix too.
 - **Arithmetic**: hand-calculated cases for every operation; invariants A + B − B = A (1e-12 relative on identical grids, 1e-9 on different grids, compared on the merged grid), scale by k then 1/k = A (1e-12), divide(A, A) = 1 exactly above the floor, flux(A + B) = flux(A) + flux(B) on the same coverage; intersection, union and treat-as-zero; kind rules and IES export refusal; provenance content and chain.
+- **Rotation**: sign of yaw, pitch and roll on direction vectors and on the asymmetric fixture; pure yaw = exact H shift; H = 0 pitched by p → V + p exactly; H = 90°, V = 0 unchanged by pitch; roll 90° maps (h, 0) to (0, −h); Gaussian peak at the hand-computed position (within half a grid step); two rotations = one composed rotation (1e-9 of peak); rotate then inverse, composed: exact (1e-9 of peak); without composition, smooth beam on a 3° grid: within 0.1% of peak (measured 0.047%); flux on the extended grid within 0.05% (measured 0.004%).
 - **Regressions**: each value mismatch found against a reference gets a synthetic fixture and a test (e.g. `fine-cutoff-typeB.ies` for the Phase 2 resampling-step fix).
 - **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 

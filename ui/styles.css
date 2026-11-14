@@ -182,3 +182,6 @@ footer p { margin: 2px 0; }
 .preview-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; font-size: 0.85rem; }
 .preview-bar .name-input { flex: 1; min-width: 140px; }
 .leg-zero::before { border-top: 3px solid var(--fg); }
+.report { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.report h3 { margin-top: 2px; }
+.note.warn { background: var(--warn-bg); color: var(--warn); font-weight: 600; }

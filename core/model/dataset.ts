@@ -84,6 +84,18 @@ export interface PhotometricDataset {
   coverage: Coverage;
   meta: DatasetMeta;
   provenance: Provenance | null;
+  /**
+   * Runtime only (never exported): set on the result of a rotation, pointing to
+   * the original, unrotated dataset and the total rotation matrix. A further
+   * rotation composes with it and resamples once from the original.
+   */
+  rotationOf?: RotationLink;
+}
+
+export interface RotationLink {
+  source: PhotometricDataset;
+  /** 3 × 3 rotation matrix, row-major (9 numbers), applied to beam directions. */
+  matrix: number[];
 }
 
 export class DatasetError extends Error {

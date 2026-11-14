@@ -270,9 +270,12 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
       body.hidden = false;
       const kind = ds.kind as Kind;
       // An overlay is drawn only on a dataset of the same kind (contour levels must mean the same thing)
-      const ovCandidate = ovEntry?.dataset ?? null;
+      // A rotation preview compares against the dataset before rotation; otherwise the chosen overlay
+      const compare = state.preview?.compareTo ?? null;
+      const ovCandidate = compare ?? ovEntry?.dataset ?? null;
+      const ovLabel = compare ? `${compare.name} (before rotation)` : `${ovEntry?.name ?? ''} (overlay)`;
       const ov = ovCandidate && ovCandidate.kind === ds.kind && ovCandidate !== ds ? ovCandidate : null;
-      current = { ds, kind, name: ds.name, ov, ovName: ovEntry?.name ?? '', isPreview: !!previewDs };
+      current = { ds, kind, name: ds.name, ov, ovName: ovLabel, isPreview: !!previewDs };
       const view = state.view;
       const c = themeColors();
 
@@ -440,7 +443,7 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
       legend.replaceChildren(
         ...[
           el('span', { class: 'leg leg-solid', text: `${ds.name}${previewDs ? ' (preview)' : ''}` }),
-          ov ? el('span', { class: 'leg leg-dash', text: `${ovEntry!.name} (overlay)` }) : null,
+          ov ? el('span', { class: 'leg leg-dash', text: ovLabel }) : null,
           kind === 'difference' ? el('span', { class: 'leg leg-zero', text: 'zero line' }) : null,
           el('span', { class: 'leg leg-cov', text: 'data coverage' }),
         ].filter((n): n is HTMLSpanElement => n !== null),
@@ -456,14 +459,14 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
       if (kind === 'difference') notes.push('Red: first dataset higher; blue: lower. The heavy line is zero.');
       if (kind === 'ratio') notes.push('Log colour scale centred on 1: red above 1, blue below. The heavy line is 1.');
       const article = (k: string) => (/^[aeiou]/.test(k) ? `an ${k}` : `a ${k}`);
-      if (ovCandidate && !ov && ovCandidate !== ds) notes.push(`Overlay "${ovEntry!.name}" is hidden: it is ${article(ovCandidate.kind)}, this view shows ${article(kind)}.`);
+      if (ovCandidate && !ov && ovCandidate !== ds) notes.push(`Overlay "${ovCandidate.name}" is hidden: it is ${article(ovCandidate.kind)}, this view shows ${article(kind)}.`);
       notes.push('Areas without data are left empty.');
       notice.textContent = notes.join(' ');
       showReadout(null);
 
       if (m) {
         secHint.hidden = true;
-        const names = { ds: ds.name, ov: ovEntry?.name ?? '' };
+        const names = { ds: ds.name, ov: ovLabel };
         const logAxis = kind === 'intensity' && scale === 'log';
         const fh = sectionFigure(hSection(ds, m.v), ov ? hSection(ov, m.v) : null, m.h, kind, logAxis, names);
         const fv = sectionFigure(vSection(ds, m.h), ov ? vSection(ov, m.h) : null, m.v, kind, logAxis, names);

@@ -14,10 +14,14 @@ import {
   windowMask,
   type BinaryOp,
 } from '../core/ops/arithmetic';
+import { pitchFromPercent, planRotation, rotate, type RotationReport, type RotationTarget } from '../core/geometry/rotate';
 import { el } from './dom';
-import { fmtCd, fmtDeg } from './format';
+import { fmtCd, fmtDeg, fmtLm, fmtValue, type Kind } from './format';
 
-type Op = BinaryOp | 'scale' | 'clamp' | 'window';
+type Op = BinaryOp | 'scale' | 'clamp' | 'window' | 'rotate';
+
+/** Above this share of target nodes outside the source coverage, the report shows a warning. */
+const OUTSIDE_WARNING = 0.05;
 
 const OPS: Array<{ value: Op; label: string }> = [
   { value: 'add', label: 'Add: a·A + b·B' },
@@ -27,6 +31,7 @@ const OPS: Array<{ value: Op; label: string }> = [
   { value: 'divide', label: 'Divide: A / B (ratio map)' },
   { value: 'clamp', label: 'Clamp negatives to zero (difference → intensity)' },
   { value: 'window', label: 'Window mask (1 inside, 0 outside)' },
+  { value: 'rotate', label: 'Rotate / aim (yaw, pitch, roll)' },
 ];
 
 const BINARY: Op[] = ['add', 'subtract', 'multiply', 'divide'];
@@ -47,13 +52,39 @@ const form = {
   hMax: '10',
   vMin: '-5',
   vMax: '5',
+  yaw: '0',
+  pitch: '0',
+  pitchUnit: 'deg' as 'deg' | 'percent',
+  roll: '0',
+  rtarget: 'same' as RotationTarget,
   name: '',
   message: '',
 };
 
+function aimFromForm() {
+  const p = num(form.pitch);
+  return { yaw: num(form.yaw), pitch: form.pitchUnit === 'percent' ? pitchFromPercent(p) : p, roll: num(form.roll) };
+}
+
 const num = (s: string) => Number(s.replace(',', '.'));
 
-function run(a: PhotometricDataset | undefined, b: PhotometricDataset | undefined): PhotometricDataset {
+interface RunResult {
+  dataset: PhotometricDataset;
+  report?: RotationReport;
+  compareTo?: PhotometricDataset;
+}
+
+function run(a: PhotometricDataset | undefined, b: PhotometricDataset | undefined): RunResult {
+  if (form.op === 'rotate') {
+    if (!a) throw new OperationError('KIND', 'Choose input A.');
+    const name = form.name.trim();
+    const r = rotate(a, aimFromForm(), { target: form.rtarget, ...(name ? { name } : {}) });
+    return { dataset: r.dataset, report: r.report, compareTo: a };
+  }
+  return { dataset: runOp(a, b) };
+}
+
+function runOp(a: PhotometricDataset | undefined, b: PhotometricDataset | undefined): PhotometricDataset {
   if (!a) throw new OperationError('KIND', 'Choose input A.');
   const name = form.name.trim() || undefined;
   const common = { ...(name ? { name } : {}) };
@@ -63,6 +94,8 @@ function run(a: PhotometricDataset | undefined, b: PhotometricDataset | undefine
       return scale(a, num(form.k), common);
     case 'clamp':
       return clampToIntensity(a, common);
+    case 'rotate':
+      throw new Error('unreachable');
     case 'window':
       return windowMask(a.grid, { hMin: num(form.hMin), hMax: num(form.hMax), vMin: num(form.vMin), vMax: num(form.vMax) }, { ...common, gridFrom: { id: a.id, name: a.name } });
   }
@@ -107,6 +140,24 @@ function summary(a: PhotometricDataset | undefined, b: PhotometricDataset | unde
         ok: true,
       };
     }
+  }
+  if (form.op === 'rotate') {
+    const aim = aimFromForm();
+    if (![aim.yaw, aim.pitch, aim.roll].every(Number.isFinite)) return { text: 'Enter yaw, pitch and roll as numbers.', ok: false };
+    const pitchText = form.pitchUnit === 'percent' ? `${num(form.pitch)}% = ${aim.pitch.toFixed(4)}°` : `${aim.pitch}°`;
+    const plan = planRotation(a, aim);
+    const t = plan.total;
+    const parts = [
+      `Rotates “${a.name}”: roll ${aim.roll}°, then pitch ${pitchText}, then yaw ${aim.yaw}°.`,
+      plan.composed
+        ? `“${a.name}” is itself a rotation: the rotations are composed (total yaw ${t.yaw.toFixed(3)}°, pitch ${t.pitch.toFixed(3)}°, roll ${t.roll.toFixed(3)}°) and its original “${plan.originalName}” is used directly (no added blur).`
+        : '',
+      plan.fastPath
+        ? 'The total is a pure yaw: an exact shift of the H grid, no resampling, values unchanged.'
+        : `True rotation on the sphere, bilinear resampling onto ${form.rtarget === 'same' ? `the same grid (${a.grid.h.length} × ${a.grid.v.length} nodes)` : 'the grid extended to contain the rotated coverage'}.`,
+      'Preview to see the report (coverage, flux, peak) before creating the dataset.',
+    ];
+    return { text: parts.filter(Boolean).join(' '), ok: true };
   }
   if (!b) return { text: 'Choose input B.', ok: false };
   const weights: [number, number] = [num(form.wa), num(form.wb)];
@@ -186,6 +237,23 @@ export function renderManipulate(root: HTMLElement, state: AppState, store: Stor
   if (form.op === 'divide') {
     fields.push(textField('Denominator floor (cd)', form.floor, (v) => set({ floor: v }), { placeholder: B ? `default ${fmtCd(defaultFloor(B))}` : 'default 0.1% of B peak' }));
   }
+  if (form.op === 'rotate') {
+    fields.push(
+      el('p', { class: 'note', text: 'Yaw + moves the beam right, pitch + moves it up, roll + turns it clockwise as seen from the lamp looking forward. Applied roll, then pitch, then yaw.' }),
+      el('div', { class: 'field-row' }, [textField('Yaw °', form.yaw, (v) => set({ yaw: v })), textField('Roll °', form.roll, (v) => set({ roll: v }))]),
+      el('div', { class: 'field-row' }, [
+        textField(form.pitchUnit === 'percent' ? 'Pitch % (inclination)' : 'Pitch °', form.pitch, (v) => set({ pitch: v })),
+        select('Pitch unit', form.pitchUnit, [
+          { value: 'deg', label: 'degrees' },
+          { value: 'percent', label: 'percent (atan(p/100))' },
+        ], (v) => set({ pitchUnit: v as 'deg' | 'percent' })),
+      ]),
+      select('Target grid', form.rtarget, [
+        { value: 'same', label: 'Same grid as the input (default)' },
+        { value: 'extended', label: 'Extended to contain the rotated coverage' },
+      ], (v) => set({ rtarget: v as RotationTarget })),
+    );
+  }
   if (form.op === 'window') {
     fields.push(
       el('div', { class: 'field-row' }, [textField('H min °', form.hMin, (v) => set({ hMin: v })), textField('H max °', form.hMax, (v) => set({ hMax: v }))]),
@@ -210,25 +278,34 @@ export function renderManipulate(root: HTMLElement, state: AppState, store: Stor
   const nameInput = el('input', { class: 'name-input', attrs: { type: 'text', 'aria-label': 'Name of the result', placeholder: 'Name (optional)' } });
   nameInput.value = form.name;
   nameInput.addEventListener('change', () => (form.name = nameInput.value));
-  const attempt = (then: (d: PhotometricDataset) => void) => {
+  const attempt = (then: (r: RunResult) => void) => {
     form.name = nameInput.value;
     try {
       then(run(A, B));
       form.message = '';
     } catch (e) {
-      form.message = e instanceof OperationError ? e.message : String(e);
+      form.message = e instanceof Error ? e.message : String(e);
       rerender();
     }
   };
-  const previewBtn = el('button', { class: 'btn', text: 'Preview', on: { click: () => attempt((d) => store.setPreview(d)) } });
+  const previewBtn = el('button', {
+    class: 'btn',
+    text: 'Preview',
+    on: {
+      click: () =>
+        attempt((r) =>
+          store.setPreview(r.dataset, { ...(r.compareTo ? { compareTo: r.compareTo } : {}), ...(r.report ? { report: r.report } : {}) }),
+        ),
+    },
+  });
   const createBtn = el('button', {
     class: 'btn primary',
     text: 'Create dataset',
     on: {
       click: () =>
-        attempt((d) => {
+        attempt((r) => {
           form.name = '';
-          store.addDerived(d, nameInput.value);
+          store.addDerived(r.dataset, nameInput.value);
         }),
     },
   });
@@ -243,9 +320,44 @@ export function renderManipulate(root: HTMLElement, state: AppState, store: Stor
         : null,
       el('h3', { text: 'What will happen' }),
       el('p', { class: sum.ok ? 'summary-text' : 'summary-text summary-error', text: sum.text }),
+      form.op === 'rotate' && state.preview?.report ? reportBox(state.preview.report, state.preview.dataset.kind as Kind) : null,
       el('label', { class: 'field' }, [el('span', { text: 'Name' }), nameInput]),
       el('div', { class: 'btn-row' }, [previewBtn, createBtn]),
       form.message ? el('p', { class: 'export-msg', attrs: { role: 'alert' }, text: form.message }) : null,
     ].filter((n): n is HTMLElement => n !== null)),
   );
+}
+
+/** The rotation report shown before "Create dataset". */
+function reportBox(r: RotationReport, kind: Kind): HTMLElement {
+  const pct = (x: number) => `${(100 * x).toFixed(1)}%`;
+  const peak = (p: { value: number; h: number; v: number }) => `${fmtValue(kind, p.value)} at H ${fmtDeg(p.h)}, V ${fmtDeg(p.v)}`;
+  const sign = r.fluxChangePercent > 0 ? '+' : '';
+  const rows: HTMLElement[] = [
+    el('dt', { text: 'Outside source coverage' }),
+    el('dd', { text: `${pct(r.outsideFraction)} of target nodes` }),
+    el('dt', { text: 'Flux before → after' }),
+    el('dd', { text: `${fmtLm(r.fluxBefore)} → ${fmtLm(r.fluxAfter)} (${sign}${r.fluxChangePercent.toFixed(3)}%)` }),
+    el('dt', { text: 'Peak before' }),
+    el('dd', { text: peak(r.peakBefore) }),
+    el('dt', { text: 'Peak after' }),
+    el('dd', { text: peak(r.peakAfter) }),
+    el('dt', { text: 'Method' }),
+    el('dd', {
+      text:
+        (r.fastPath ? 'exact H shift (pure yaw), no resampling' : 'true rotation, bilinear resampling') +
+        (r.composed ? `; composed: total yaw ${r.composedAngles.yaw.toFixed(3)}°, pitch ${r.composedAngles.pitch.toFixed(3)}°, roll ${r.composedAngles.roll.toFixed(3)}°` : ''),
+    }),
+  ];
+  return el('div', { class: 'report' }, [
+    el('h3', { text: 'Rotation report (preview)' }),
+    el('dl', { class: 'kv' }, rows),
+    r.outsideFraction > OUTSIDE_WARNING
+      ? el('p', {
+          class: 'note warn',
+          attrs: { role: 'alert' },
+          text: `${pct(r.outsideFraction)} of the target grid has no source data after rotation (more than ${pct(OUTSIDE_WARNING)}). Consider the extended target grid, or check the angles.`,
+        })
+      : null,
+  ].filter((n): n is NonNullable<typeof n> => n !== null));
 }

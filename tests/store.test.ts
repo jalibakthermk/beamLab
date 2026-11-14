@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from '../ui/state/store';
 import { subtract } from '../core/ops/arithmetic';
+import { rotate } from '../core/geometry/rotate';
 import { fixture } from './load-fixture';
 
 const file = (name: string) => ({ name, text: fixture(name) });
@@ -157,6 +158,18 @@ describe('derived datasets and preview (Phase 3)', () => {
     const e = store.addDerived(subtract(a.dataset!, b.dataset!), 'd');
     store.setFlipH(e.key, true);
     expect(store.getState().entries.find((x) => x.key === e.key)?.flipH).toBe(false);
+  });
+
+  it('a rotation preview carries the original for comparison and the report', () => {
+    const { store, a } = setup();
+    const { dataset, report } = rotate(a.dataset!, { yaw: 0, pitch: 1, roll: 0 });
+    store.setPreview(dataset, { compareTo: a.dataset!, report });
+    const p = store.getState().preview!;
+    expect(p.compareTo).toBe(a.dataset);
+    expect(p.report).toBe(report);
+    store.setPreview(subtract(a.dataset!, a.dataset!));
+    expect(store.getState().preview?.compareTo).toBeNull();
+    expect(store.getState().preview?.report).toBeNull();
   });
 
   it('selecting a dataset closes the preview; the panel tab can be switched', () => {

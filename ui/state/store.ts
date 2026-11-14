@@ -2,6 +2,7 @@ import { parseIes, type IesWarning } from '../../core/io/ies';
 import { summarize, type DatasetSummary } from '../../core/analysis/summary';
 import type { IntensityScale } from '../../core/analysis/levels';
 import type { PhotometricDataset } from '../../core/model/dataset';
+import type { RotationReport } from '../../core/geometry/rotate';
 
 /**
  * Plain app-state store (no framework, no DOM).
@@ -47,6 +48,10 @@ export interface Preview {
   /** A result shown in the viewer but not (yet) in the workspace. */
   dataset: PhotometricDataset;
   summary: DatasetSummary;
+  /** Drawn dashed for comparison (e.g. the dataset before rotation). */
+  compareTo: PhotometricDataset | null;
+  /** Report of the rotation that produced the preview, if any. */
+  report: RotationReport | null;
 }
 
 export type PanelTab = 'info' | 'manipulate';
@@ -73,7 +78,7 @@ export interface Store {
   setView(patch: Partial<Omit<ViewSettings, 'marker'>>): void;
   setMarker(marker: { h: number; v: number } | null): void;
   /** Shows a result in the viewer without adding it to the workspace (null closes the preview). */
-  setPreview(dataset: PhotometricDataset | null): void;
+  setPreview(dataset: PhotometricDataset | null, extras?: { compareTo?: PhotometricDataset; report?: RotationReport }): void;
   /** Adds an operation result to the workspace under the given name, selects it and closes the preview. */
   addDerived(dataset: PhotometricDataset, name: string): Entry;
   rename(key: string, name: string): void;
@@ -174,8 +179,13 @@ export function createStore(): Store {
       set({ ...state, view: { ...state.view, marker } });
     },
 
-    setPreview(dataset) {
-      set({ ...state, preview: dataset ? { dataset, summary: summarize(dataset) } : null });
+    setPreview(dataset, extras = {}) {
+      set({
+        ...state,
+        preview: dataset
+          ? { dataset, summary: summarize(dataset), compareTo: extras.compareTo ?? null, report: extras.report ?? null }
+          : null,
+      });
     },
 
     addDerived(dataset, name) {

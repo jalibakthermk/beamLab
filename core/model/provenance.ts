@@ -77,6 +77,12 @@ export function describeStep(p: Provenance | null): string {
       const w = q['window'] as { hMin: number; hMax: number; vMin: number; vMax: number };
       return `window mask H ${num(w.hMin)}..${num(w.hMax)}, V ${num(w.vMin)}..${num(w.vMax)}${q['gridFrom'] ? ` on the grid of ${q['gridFrom']}` : ''}`;
     }
+    case 'rotate': {
+      const c = q['composedAngles'] as { yaw: number; pitch: number; roll: number } | undefined;
+      let s = `rotate: yaw ${num(q['yaw'])}, pitch ${num(q['pitch'])}, roll ${num(q['roll'])} deg (roll, then pitch, then yaw); target grid ${q['target']}; interpolation ${q['interpolation']}`;
+      if (q['composed'] && c) s += `; composed with the previous rotation: total yaw ${num(c.yaw)}, pitch ${num(c.pitch)}, roll ${num(c.roll)} deg, resampled once from ${q['resampledFrom']}`;
+      return s;
+    }
     case 'resample':
       return `resample of ${a ?? p.inputs[0]} (bilinear)`;
     default:
