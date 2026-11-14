@@ -1,7 +1,8 @@
+import { messageText, toUserMessage } from '../core/messages';
 import type { AppState } from './state/store';
 import type { PhotometricDataset } from '../core/model/dataset';
 import { parseLevels } from '../core/analysis/levels';
-import { RoadError, gridSize, DEFAULT_MAX_POINTS, type RoadLamp } from '../core/road/illuminance';
+import { gridSize, DEFAULT_MAX_POINTS, type RoadLamp } from '../core/road/illuminance';
 import { laneLayout, parsePoints, type RoadLayout } from '../core/road/setup';
 import { runRoad, type RoadRunInput, type RoadRunResult } from '../core/road/results';
 import type { RoadRequirements } from '../core/road/requirements';
@@ -48,7 +49,7 @@ export function prepare(state: AppState, requirements: RoadRequirements | null):
     try {
       layout = laneLayout(ln);
     } catch (e) {
-      warnings.push(`Lane setup: ${e instanceof RoadError ? e.message : String(e)} (reach is shown on the vehicle axis until it is complete).`);
+      warnings.push(`Lane setup: ${toUserMessage(e).detail ?? messageText(toUserMessage(e))} (reach is shown on the vehicle axis until it is complete).`);
     }
   }
 
@@ -58,7 +59,7 @@ export function prepare(state: AppState, requirements: RoadRequirements | null):
     const n = gridSize(grid.x, grid.y);
     if (n > DEFAULT_MAX_POINTS) missing.push(`Grid has ${n.toLocaleString('en')} points, more than ${DEFAULT_MAX_POINTS.toLocaleString('en')}: use a larger step or a smaller range.`);
   } catch (e) {
-    missing.push(`Grid: ${e instanceof Error ? e.message : String(e)}`);
+    missing.push(`Grid: ${toUserMessage(e).detail ?? messageText(toUserMessage(e))}`);
   }
 
   const lv = parseLevels(s.levelsText);
@@ -158,7 +159,7 @@ export function schedule(input: RoadRunInput | null, onUpdate: () => void): void
         try {
           done(runRoad(input, () => performance.now()), '', false);
         } catch (e) {
-          done(null, e instanceof Error ? e.message : String(e), false);
+          done(null, messageText(toUserMessage(e)), false);
         }
       };
       w.postMessage({ id, input });
@@ -166,7 +167,7 @@ export function schedule(input: RoadRunInput | null, onUpdate: () => void): void
       try {
         done(runRoad(input, () => performance.now()), '', false);
       } catch (e) {
-        done(null, e instanceof Error ? e.message : String(e), false);
+        done(null, messageText(toUserMessage(e)), false);
       }
     }
   }, 120);

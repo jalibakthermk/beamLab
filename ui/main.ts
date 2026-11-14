@@ -4,6 +4,11 @@ import { createStore, type LoadedFile } from './state/store';
 import { renderWorkspace } from './workspace';
 import { renderInfo } from './info';
 import { createViewer } from './viewer';
+import { message, messageText } from '../core/messages';
+import { busy } from './busy';
+import { createReportPage } from './report/page';
+import { createHelp } from './help';
+import { exportSettings, importSettingsFile, renderSettingsNotice } from './settings-io';
 import { createRoadView } from './road-view';
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -24,8 +29,10 @@ const roadEl = document.createElement('div');
 viewerEl.replaceChildren(angularEl, roadEl);
 const viewer = createViewer(angularEl, store);
 const roadView = createRoadView(roadEl, store);
+const settingsNotice = document.getElementById('settings-notice')!;
 const render = () => {
   const state = store.getState();
+  renderSettingsNotice(settingsNotice, state, store);
   renderWorkspace(workspaceEl, state, store);
   renderInfo(panelEl, state, store);
   const road = state.panelTab === 'road';
@@ -36,6 +43,30 @@ const render = () => {
 };
 store.subscribe(render);
 render();
+
+const report = createReportPage(store);
+const help = createHelp();
+const reportBtn = document.getElementById('report-btn')!;
+reportBtn.addEventListener('click', () => void report.open(reportBtn));
+document.getElementById('settings-export')!.addEventListener('click', () => exportSettings(store.getState()));
+const settingsInput = document.getElementById('settings-input') as HTMLInputElement;
+settingsInput.addEventListener('change', () => {
+  const f = settingsInput.files?.[0];
+  if (f) void importSettingsFile(f, store);
+  settingsInput.value = '';
+});
+const helpBtn = document.getElementById('help-btn')!;
+helpBtn.addEventListener('click', () => help.open(helpBtn));
+
+/** SHA-256 of the file content (hex), computed locally with Web Crypto; null if unavailable. */
+async function sha256Hex(buf: ArrayBuffer): Promise<string | null> {
+  try {
+    const d = await crypto.subtle.digest('SHA-256', buf);
+    return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
 
 /** IES files are usually ASCII; fall back to Windows-1252 for files with non-UTF-8 bytes. */
 function decode(buf: ArrayBuffer): string {
@@ -52,16 +83,18 @@ async function loadFiles(files: FileList | File[]): Promise<void> {
   if (!list.length) return;
   const loaded = await Promise.all(
     list.map(async (f): Promise<LoadedFile> => {
-      if (!/\.ies$/i.test(f.name)) return { name: f.name, text: '', error: 'Not an .ies file.' };
-      if (f.size > MAX_FILE_BYTES) return { name: f.name, text: '', error: 'File is larger than 50 MB.' };
+      if (!/\.ies$/i.test(f.name)) return { name: f.name, text: '', error: messageText(message('FILE.NOT_IES')) };
+      if (f.size > MAX_FILE_BYTES) return { name: f.name, text: '', error: messageText(message('FILE.TOO_LARGE')) };
       try {
-        return { name: f.name, text: decode(await f.arrayBuffer()) };
+        const buf = await f.arrayBuffer();
+        return { name: f.name, text: decode(buf), sha256: await sha256Hex(buf) };
       } catch (e) {
-        return { name: f.name, text: '', error: `Could not read the file: ${e instanceof Error ? e.message : String(e)}` };
+        console.error(e);
+        return { name: f.name, text: '', error: messageText(message('FILE.UNREADABLE')) };
       }
     }),
   );
-  store.addFiles(loaded);
+  await busy(`Loading ${loaded.length} file(s)`, () => store.addFiles(loaded));
 }
 
 fileInput.addEventListener('change', () => {

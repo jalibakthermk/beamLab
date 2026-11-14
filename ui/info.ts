@@ -1,12 +1,13 @@
+import { MESSAGES, messageText, toUserMessage } from '../core/messages';
 import type { AppState, PanelTab, Store } from './state/store';
 import { el } from './dom';
-import { baseName, fmtDeg, fmtLm, fmtStep, fmtValue, KIND_LABEL, type Kind } from './format';
+import { baseName, fmtDeg, fmtLm, fmtSig, fmtStep, fmtValue, KIND_LABEL, type Kind } from './format';
 import { downloadText } from './download';
 import { renderManipulate } from './manipulate';
 import { renderCutoff } from './cutoff';
 import { renderEvaluate } from './evaluate';
 import { renderRoad } from './road';
-import { exportIes, ExportError } from '../core/io/export';
+import { exportIes } from '../core/io/export';
 import { exportCsv } from '../core/io/csv';
 import { sample } from '../core/geometry/interpolate';
 import { valueRange } from '../core/analysis/levels';
@@ -15,7 +16,7 @@ import { provenanceChain } from '../core/model/provenance';
 // Probe inputs survive re-renders of the panel (kept in memory only).
 const probe = { h: '', v: '' };
 
-const TABS: Array<{ label: string; tab: PanelTab | null }> = [
+const TABS: Array<{ label: string; tab: PanelTab }> = [
   { label: 'Info', tab: 'info' },
   { label: 'Evaluate', tab: 'evaluate' },
   { label: 'Road', tab: 'road' },
@@ -38,15 +39,17 @@ export function renderInfo(root: HTMLElement, state: AppState, store: Store): vo
         class: active ? 'tab active' : 'tab',
         text: label,
         attrs: { role: 'tab', 'aria-selected': String(active) },
-        title: tab ? '' : 'Coming in a later phase',
-        on: { click: () => tab && store.setPanelTab(tab) },
+        on: { click: () => store.setPanelTab(tab) },
       });
-      b.disabled = tab === null;
       return b;
     }),
   );
   const body = el('div', { class: 'pad' });
   root.replaceChildren(tabs, body);
+  if (!state.entries.some((e) => e.dataset)) {
+    body.replaceChildren(el('p', { class: 'empty-state', text: 'Load an IES file to begin: drop it anywhere on the page or use “Open IES files…”.' }));
+    return;
+  }
   if (state.panelTab === 'manipulate') renderManipulate(body, state, store);
   else if (state.panelTab === 'cutoff') renderCutoff(body, state, store);
   else if (state.panelTab === 'evaluate') renderEvaluate(body, state, store);
@@ -99,7 +102,7 @@ function renderInfoBody(root: HTMLElement, state: AppState, store: Store): void 
           downloadText(`${fileBase}-beamLab.ies`, exportIes(ds), 'text/plain');
           exportMsg.textContent = '';
         } catch (e) {
-          exportMsg.textContent = e instanceof ExportError ? e.message : String(e);
+          exportMsg.textContent = messageText(toUserMessage(e));
         }
       },
     },
@@ -130,7 +133,7 @@ function renderInfoBody(root: HTMLElement, state: AppState, store: Store): void 
     }
     const x = sample(ds, h, v);
     probeOut.textContent = Number.isFinite(x)
-      ? `(H ${fmtDeg(h, 4)}, V ${fmtDeg(v, 4)}) = ${fmtValue(kind, x)}  [${x.toPrecision(7)}, bilinear, full data]`
+      ? `(H ${fmtDeg(h, 4)}, V ${fmtDeg(v, 4)}) = ${fmtValue(kind, x)}  [${fmtSig(x, 7)}, bilinear, full data]`
       : `No data at H ${fmtDeg(h, 4)}, V ${fmtDeg(v, 4)}.`;
   };
   for (const inp of [probeH, probeV]) inp.addEventListener('keydown', (e) => e.key === 'Enter' && runProbe());
@@ -180,7 +183,7 @@ function renderInfoBody(root: HTMLElement, state: AppState, store: Store): void 
       el('pre', { class: 'chain', text: provenanceChain(ds) }),
       el('h3', { text: `Warnings (${warnings.length})` }),
       warnings.length
-        ? el('ul', { class: 'warnings' }, warnings.map((w) => el('li', { class: w.severity === 'warning' ? 'w-warn' : 'w-info' }, [el('code', { text: w.code }), el('span', { text: ` ${w.message}` })])))
+        ? el('ul', { class: 'warnings' }, warnings.map((w) => el('li', { class: w.severity === 'warning' ? 'w-warn' : 'w-info' }, [el('span', { text: w.severity === 'warning' ? '⚠ ' : 'i ', attrs: { 'aria-label': w.severity } }), el('code', { text: w.code }), el('span', { text: ` ${w.message} ${MESSAGES[`IESW.${w.code}`]?.action ?? ''}` })])))
         : el('p', { class: 'muted', text: 'No warnings.' }),
       el('h3', { text: `Keywords (${ds.meta.keywords.length})` }),
       ds.meta.keywords.length ? el('dl', { class: 'kv keywords' }, ds.meta.keywords.flatMap((k) => row(k.key, k.value))) : el('p', { class: 'muted', text: 'No keywords.' }),

@@ -1,11 +1,12 @@
+import { messageText, toUserMessage } from '../core/messages';
 import { EMPTY_ROAD_LAMP, type AppState, type RoadLampSettings, type RoadSettings, type Store } from './state/store';
 import { el } from './dom';
 import { downloadText } from './download';
 import { lampPair, mirrorAim, parseVehiclePreset, type VehiclePreset } from '../core/road/setup';
-import { RoadError } from '../core/road/illuminance';
-import { parseRequirements, RequirementsError, type RequirementResult, type RoadRequirements } from '../core/road/requirements';
+import { parseRequirements, type RequirementResult, type RoadRequirements } from '../core/road/requirements';
 import { lineLabel, roadResultsToCsv } from '../core/road/results';
 import { prepare, runState, schedule } from './road-run';
+import { fmtLx as lx, fmtM, fmtPct, fmtStatus } from './format';
 
 // ── Bundled files ─────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ for (const [file, obj] of Object.entries(reqFiles)) {
     const req = parseRequirements(obj);
     REQS.push({ key: `data:${req.id}`, req, origin: file.replace('../', '') });
   } catch (e) {
-    invalidReqs.push(`${file.replace('../', '')}: ${e instanceof RequirementsError ? e.problems.join('; ') : String(e)}`);
+    invalidReqs.push(`${file.replace('../', '')}: ${messageText(toUserMessage(e))}`);
   }
 }
 const loadedReqs: ReqEntry[] = [];
@@ -46,8 +47,8 @@ export function requirementEntry(state: AppState): ReqEntry | null {
 
 // ── Small field helpers ───────────────────────────────────────────────────
 
-const fmt = (x: number | null | undefined, d = 2) => (x === null || x === undefined || !Number.isFinite(x) ? '—' : x.toFixed(d));
-const fmtLx = (x: number) => (Number.isNaN(x) ? 'no data' : x >= 100 ? x.toFixed(0) : x >= 10 ? x.toFixed(1) : x >= 1 ? x.toFixed(2) : x.toPrecision(3));
+const fmt = (x: number | null | undefined, d = 2) => fmtM(x, d);
+const fmtLx = (x: number) => (Number.isNaN(x) ? 'no data' : lx(x));
 
 function numField(label: string, value: number | null, onChange: (v: number | null) => void, opts: { required?: boolean; placeholder?: string } = {}): HTMLElement {
   const i = el('input', { attrs: { type: 'text', inputmode: 'decimal', 'aria-label': label, placeholder: opts.placeholder ?? (opts.required ? 'required' : '') } });
@@ -127,7 +128,7 @@ export function renderRoad(root: HTMLElement, state: AppState, store: Store): vo
           pairMessage = '';
           set({ lamps: [toSettings(l, p.leftKey!), toSettings(r, p.rightKey ?? p.leftKey!)] });
         } catch (e) {
-          pairMessage = e instanceof RoadError ? e.message.replace(/^./, (c) => c.toUpperCase()) + '.' : String(e);
+          pairMessage = toUserMessage(e).detail ?? messageText(toUserMessage(e));
           set({});
         }
       },
@@ -270,7 +271,7 @@ export function renderRoad(root: HTMLElement, state: AppState, store: Store): vo
       reqMessage = '';
       set({ reqKey: entry.key });
     } catch (e) {
-      reqMessage = e instanceof RequirementsError ? `${f.name} is not a valid requirement file:\n- ${e.problems.join('\n- ')}` : `${f.name} could not be read: ${e instanceof Error ? e.message : String(e)}`;
+      reqMessage = `${f.name}: ${messageText(toUserMessage(e))}`;
       set({});
     }
   });
@@ -303,9 +304,9 @@ export function renderRoad(root: HTMLElement, state: AppState, store: Store): vo
         el('dt', { text: 'Maximum' }),
         el('dd', { text: r.max ? `${fmtLx(r.max.value)} lx at x ${fmt(r.max.x)} m, y ${fmt(r.max.y)} m` : '—' }),
         el('dt', { text: 'Unknown' }),
-        el('dd', { text: f.outside === 'zero' ? 'none (directions without data counted as 0 lx)' : `${(f.unknownFraction * 100).toFixed(1)} % of the road grid (no data in that direction)` }),
+        el('dd', { text: f.outside === 'zero' ? 'none (directions without data counted as 0 lx)' : `${fmtPct(f.unknownFraction * 100, 1)} of the road grid (no data in that direction)` }),
         el('dt', { text: 'Calculated' }),
-        el('dd', { text: `${f.values.length.toLocaleString('en')} points in ${r.ms.toFixed(0)} ms${run.inWorker ? ' (Web Worker)' : ''}` }),
+        el('dd', { text: `${f.values.length.toLocaleString('en')} points in ${Math.round(r.ms)} ms${run.inWorker ? ' (Web Worker)' : ''}` }),
       ]),
     );
 
@@ -360,7 +361,7 @@ export function renderRoad(root: HTMLElement, state: AppState, store: Store): vo
       const fmtM = (e: RequirementResult, x: number | null) => (x === null ? '—' : `${e.unit === 'lx' ? fmtLx(x) : fmt(x)} ${e.unit}`);
       parts.push(
         el('div', { class: `verdict verdict-${rq.overall}` }, [
-          el('strong', { text: rq.overall.toUpperCase() }),
+          el('strong', { text: fmtStatus(rq.overall).toUpperCase() }),
           el('span', { text: ` ${rq.counts.pass} pass, ${rq.counts.fail} fail, ${rq.counts.notEvaluated} not evaluated. Worst margin: ${rq.worst ?? '—'}.` }),
         ]),
         el('table', { class: 'cut-table eval-table' }, [
@@ -371,8 +372,8 @@ export function renderRoad(root: HTMLElement, state: AppState, store: Store): vo
               el('td', { text: fmtM(e, e.measured) + (e.flags.length ? ' ⚑' : '') }),
               el('td', { text: e.limit ? `${e.limit.kind} ${fmtM(e, e.limit.value)}` : '—' }),
               el('td', { text: e.margin === null ? '—' : fmtM(e, e.margin) }),
-              el('td', { text: e.marginPercent === null || !Number.isFinite(e.marginPercent) ? '—' : `${e.marginPercent >= 0 ? '+' : ''}${e.marginPercent.toFixed(1)}%` }),
-              el('td', { class: `st st-${e.status}`, text: e.status === 'not-evaluated' ? 'not evaluated' : e.status }),
+              el('td', { text: fmtPct(e.marginPercent, 1, true) }),
+              el('td', { class: `st st-${e.status}`, text: fmtStatus(e.status) }),
             ]),
           )),
         ]),

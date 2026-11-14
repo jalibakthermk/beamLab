@@ -1,6 +1,6 @@
 import type { PhotometricDataset } from '../model/dataset';
 import { sample } from '../geometry/interpolate';
-import { applyMatrix, multiplyMatrices, rotationMatrix, transpose, type Aim, type Mat3 } from '../geometry/rotate';
+import { multiplyMatrices, rotationMatrix, transpose, type Aim, type Mat3 } from '../geometry/rotate';
 import type { Vec3 } from '../geometry/coords';
 
 /**
@@ -104,14 +104,6 @@ function prepare(lamps: RoadLamp[], opts: IlluminanceOptions): PreparedLamp[] {
     }
     return { px: l.position.x, py: l.position.y, pz: l.position.height, toLamp: transpose(r), dataset, mirror: !!l.mirror };
   });
-}
-
-/** Lamp-frame Type A angles (degrees) of a vehicle-frame unit direction. */
-export function lampAngles(toLamp: Mat3, u: Vec3, mirror = false): { h: number; v: number } {
-  const d = applyMatrix(toLamp, u);
-  const v = Math.asin(Math.max(-1, Math.min(1, d[2]))) * R2D;
-  const h = Math.atan2(d[1], d[0]) * R2D;
-  return { h: mirror ? -h : h, v };
 }
 
 function evalPoint(prep: PreparedLamp[], x: number, y: number, z: number, nx: number, ny: number, nz: number, zeroOutside: boolean): number {

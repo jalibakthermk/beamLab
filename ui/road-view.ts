@@ -6,6 +6,7 @@ import { contourLines, toLineXY } from '../core/analysis/contours';
 import { decadeTicks } from '../core/analysis/levels';
 import { makeEvaluator } from '../core/road/illuminance';
 import { prepare, runState } from './road-run';
+import { fmtLx, fmtM, fmtPct } from './format';
 import { requirementEntry } from './road';
 import type { RoadRunResult } from '../core/road/results';
 
@@ -90,7 +91,7 @@ export function createRoadView(root: HTMLElement, store: Store) {
     const y = ya.p2c(py);
     const v = evaluate([x, y, 0]);
     const side = Math.abs(y) < 0.005 ? 'centre' : y > 0 ? 'right' : 'left';
-    readout.textContent = `x ${x.toFixed(2)} m, y ${y.toFixed(2)} m (${side}): ${Number.isNaN(v) ? 'no data (unknown)' : `${v >= 10 ? v.toFixed(1) : v.toPrecision(3)} lx`}`;
+    readout.textContent = `x ${fmtM(x, 2, true)}, y ${fmtM(y, 2, true)} (${side}): ${Number.isNaN(v) ? 'no data (unknown)' : `${fmtLx(v)} lx`}`;
   });
   plot.addEventListener('mouseleave', () => (readout.textContent = ''));
 
@@ -128,7 +129,7 @@ export function createRoadView(root: HTMLElement, store: Store) {
       const data: object[] = [
         {
           type: 'heatmap', x: f.cols, y: f.rows, z: d.z, zmin, zmax, colorscale: viridisScale(1), hoverinfo: 'skip', zsmooth: false,
-          colorbar: { title: { text: 'lx', side: 'right' }, tickvals: ticks.map(Math.log10), ticktext: ticks.map((t) => (t >= 1 ? String(t) : t.toPrecision(1))), thickness: 12 },
+          colorbar: { title: { text: 'lx', side: 'right' }, tickvals: ticks.map(Math.log10), ticktext: ticks.map((t) => fmtLx(t)), thickness: 12 },
         },
       ];
       input.levels.forEach((lv, i) => {
@@ -176,7 +177,7 @@ export function createRoadView(root: HTMLElement, store: Store) {
         }),
         prep.layout ? el('span', { class: 'leg leg-lane', text: 'lane markings' }) : el('span', { class: 'muted', text: 'no lane setup' }),
       );
-      caption.textContent = `${input.lamps.length} lamp(s). Log colour scale, lx. Empty areas: no data in that direction (unknown, ${(f.unknownFraction * 100).toFixed(1)} % of the grid)${input.outside === 'zero' ? '; set to 0 lx by the option' : ''}. Vehicle outline is schematic.`;
+      caption.textContent = `${input.lamps.length} lamp(s). Log colour scale, lx. Empty areas: no data in that direction (unknown, ${fmtPct(f.unknownFraction * 100, 1)} of the grid)${input.outside === 'zero' ? '; set to 0 lx by the option' : ''}. Vehicle outline is schematic.`;
     },
   };
 }

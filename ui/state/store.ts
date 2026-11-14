@@ -1,8 +1,12 @@
+import { messageText, toUserMessage } from '../../core/messages';
 import { parseIes, type IesWarning } from '../../core/io/ies';
 import { summarize, type DatasetSummary } from '../../core/analysis/summary';
 import type { IntensityScale } from '../../core/analysis/levels';
 import type { PhotometricDataset } from '../../core/model/dataset';
 import type { RotationReport } from '../../core/geometry/rotate';
+import { DEFAULT_REPORT_OPTIONS, type ReportOptions } from '../../core/report/build';
+import type { FileMatch, SettingsFile } from '../../core/settings';
+import { resolveImport, settingsSections } from './settings';
 
 /**
  * Plain app-state store (no framework, no DOM).
@@ -12,6 +16,8 @@ import type { RotationReport } from '../../core/geometry/rotate';
 export interface LoadedFile {
   name: string;
   text: string;
+  /** SHA-256 of the file content (hex), computed locally with Web Crypto. */
+  sha256?: string | null;
   /** Set by the loader when the file could not be read (e.g. wrong type); it is then not parsed. */
   error?: string;
 }
@@ -24,6 +30,8 @@ export interface Entry {
   origin: 'file' | 'derived';
   /** Source text, kept in memory so flipH can reload the file ('' for derived datasets). */
   text: string;
+  /** SHA-256 of the file content (hex); null for derived datasets or if it could not be computed. */
+  sha256: string | null;
   flipH: boolean;
   dataset: PhotometricDataset | null;
   summary: DatasetSummary | null;
@@ -158,6 +166,9 @@ export interface AppState {
   cutoff: CutoffSettings;
   evaluate: EvaluateSettings;
   road: RoadSettings;
+  report: ReportOptions;
+  /** Settings imported from a file, waiting for (or matched with) the files they refer to. */
+  settingsImport: { file: SettingsFile; matches: FileMatch[]; signature: string | null } | null;
 }
 
 export type Listener = (state: AppState) => void;
@@ -181,15 +192,19 @@ export interface Store {
   setCutoff(patch: Partial<CutoffSettings>): void;
   setEvaluate(patch: Partial<EvaluateSettings>): void;
   setRoad(patch: Partial<RoadSettings>): void;
+  setReport(patch: Partial<ReportOptions>): void;
+  /** Applies a settings file; references to files are resolved as matching files are loaded. */
+  importSettings(file: SettingsFile): void;
+  clearSettingsImport(): void;
 }
 
-function load(key: string, name: string, text: string, flipH: boolean): Entry {
+function load(key: string, name: string, text: string, flipH: boolean, sha256: string | null): Entry {
   try {
     const { dataset, warnings } = parseIes(text, { name, flipH });
-    return { key, name, origin: 'file', text, flipH, dataset, summary: summarize(dataset), warnings, error: null };
+    return { key, name, origin: 'file', text, sha256, flipH, dataset, summary: summarize(dataset), warnings, error: null };
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { key, name, origin: 'file', text, flipH, dataset: null, summary: null, warnings: [], error: message };
+    const message = messageText(toUserMessage(e));
+    return { key, name, origin: 'file', text, sha256, flipH, dataset: null, summary: null, warnings: [], error: message };
   }
 }
 
@@ -204,12 +219,14 @@ export function createStore(): Store {
     cutoff: { ...DEFAULT_CUTOFF },
     evaluate: { regId: null, traffic: 'RHT', aimMode: 'as-loaded', scaleFactor: 1, lamps: 1, selected: null, sortByMargin: false },
     road: structuredClone(DEFAULT_ROAD),
+    report: structuredClone(DEFAULT_REPORT_OPTIONS),
+    settingsImport: null,
   };
   const listeners = new Set<Listener>();
   let counter = 0;
 
   const set = (next: AppState) => {
-    state = next;
+    state = next.settingsImport ? resolveImport(next) : next;
     for (const l of listeners) l(state);
   };
   const usable = (key: string | null) => state.entries.some((e) => e.key === key && e.dataset !== null);
@@ -226,9 +243,9 @@ export function createStore(): Store {
       const added = files.map((f): Entry => {
         const key = `f${++counter}`;
         if (f.error !== undefined) {
-          return { key, name: f.name, origin: 'file', text: '', flipH: false, dataset: null, summary: null, warnings: [], error: f.error };
+          return { key, name: f.name, origin: 'file', text: '', sha256: f.sha256 ?? null, flipH: false, dataset: null, summary: null, warnings: [], error: f.error };
         }
-        return load(key, f.name, f.text, false);
+        return load(key, f.name, f.text, false, f.sha256 ?? null);
       });
       const firstGood = added.find((e) => e.dataset !== null);
       set({
@@ -267,7 +284,7 @@ export function createStore(): Store {
       set({
         ...state,
         entries: state.entries.map((e) =>
-          e.key === key && e.origin === 'file' && e.flipH !== flipH ? load(e.key, e.name, e.text, flipH) : e,
+          e.key === key && e.origin === 'file' && e.flipH !== flipH ? load(e.key, e.name, e.text, flipH, e.sha256) : e,
         ),
       });
     },
@@ -297,6 +314,7 @@ export function createStore(): Store {
         name: clean,
         origin: 'derived',
         text: '',
+        sha256: null,
         flipH: false,
         dataset: ds,
         summary: summarize(ds),
@@ -333,6 +351,18 @@ export function createStore(): Store {
 
     setRoad(patch) {
       set({ ...state, road: { ...state.road, ...patch } });
+    },
+
+    setReport(patch) {
+      set({ ...state, report: { ...state.report, ...patch } });
+    },
+
+    importSettings(file) {
+      set({ ...state, ...settingsSections(file), settingsImport: { file, matches: [], signature: null } });
+    },
+
+    clearSettingsImport() {
+      set({ ...state, settingsImport: null });
     },
   };
 }

@@ -1,3 +1,5 @@
+import { busy } from './busy';
+import { messageText, toUserMessage } from '../core/messages';
 import type { AppState, Entry, Store } from './state/store';
 import type { PhotometricDataset } from '../core/model/dataset';
 import {
@@ -16,7 +18,7 @@ import {
 } from '../core/ops/arithmetic';
 import { pitchFromPercent, planRotation, rotate, type RotationReport, type RotationTarget } from '../core/geometry/rotate';
 import { el } from './dom';
-import { fmtCd, fmtDeg, fmtLm, fmtValue, type Kind } from './format';
+import { fmtCd, fmtDeg, fmtDegFixed, fmtLm, fmtPct, fmtValue, type Kind } from './format';
 
 type Op = BinaryOp | 'scale' | 'clamp' | 'window' | 'rotate';
 
@@ -144,13 +146,13 @@ function summary(a: PhotometricDataset | undefined, b: PhotometricDataset | unde
   if (form.op === 'rotate') {
     const aim = aimFromForm();
     if (![aim.yaw, aim.pitch, aim.roll].every(Number.isFinite)) return { text: 'Enter yaw, pitch and roll as numbers.', ok: false };
-    const pitchText = form.pitchUnit === 'percent' ? `${num(form.pitch)}% = ${aim.pitch.toFixed(4)}°` : `${aim.pitch}°`;
+    const pitchText = form.pitchUnit === 'percent' ? `${num(form.pitch)}% = ${fmtDegFixed(aim.pitch, 4)}` : `${aim.pitch}°`;
     const plan = planRotation(a, aim);
     const t = plan.total;
     const parts = [
       `Rotates “${a.name}”: roll ${aim.roll}°, then pitch ${pitchText}, then yaw ${aim.yaw}°.`,
       plan.composed
-        ? `“${a.name}” is itself a rotation: the rotations are composed (total yaw ${t.yaw.toFixed(3)}°, pitch ${t.pitch.toFixed(3)}°, roll ${t.roll.toFixed(3)}°) and its original “${plan.originalName}” is used directly (no added blur).`
+        ? `“${a.name}” is itself a rotation: the rotations are composed (total yaw ${fmtDegFixed(t.yaw)}, pitch ${fmtDegFixed(t.pitch)}, roll ${fmtDegFixed(t.roll)}) and its original “${plan.originalName}” is used directly (no added blur).`
         : '',
       plan.fastPath
         ? 'The total is a pure yaw: an exact shift of the H grid, no resampling, values unchanged.'
@@ -278,16 +280,16 @@ export function renderManipulate(root: HTMLElement, state: AppState, store: Stor
   const nameInput = el('input', { class: 'name-input', attrs: { type: 'text', 'aria-label': 'Name of the result', placeholder: 'Name (optional)' } });
   nameInput.value = form.name;
   nameInput.addEventListener('change', () => (form.name = nameInput.value));
-  const attempt = (then: (r: RunResult) => void) => {
+  const attempt = (then: (r: RunResult) => void) => void busy('Calculating', () => {
     form.name = nameInput.value;
     try {
       then(run(A, B));
       form.message = '';
     } catch (e) {
-      form.message = e instanceof Error ? e.message : String(e);
+      form.message = messageText(toUserMessage(e));
       rerender();
     }
-  };
+  });
   const previewBtn = el('button', {
     class: 'btn',
     text: 'Preview',
@@ -330,14 +332,14 @@ export function renderManipulate(root: HTMLElement, state: AppState, store: Stor
 
 /** The rotation report shown before "Create dataset". */
 function reportBox(r: RotationReport, kind: Kind): HTMLElement {
-  const pct = (x: number) => `${(100 * x).toFixed(1)}%`;
+  const pct = (x: number) => fmtPct(100 * x, 1);
   const peak = (p: { value: number; h: number; v: number }) => `${fmtValue(kind, p.value)} at H ${fmtDeg(p.h)}, V ${fmtDeg(p.v)}`;
   const sign = r.fluxChangePercent > 0 ? '+' : '';
   const rows: HTMLElement[] = [
     el('dt', { text: 'Outside source coverage' }),
     el('dd', { text: `${pct(r.outsideFraction)} of target nodes` }),
     el('dt', { text: 'Flux before → after' }),
-    el('dd', { text: `${fmtLm(r.fluxBefore)} → ${fmtLm(r.fluxAfter)} (${sign}${r.fluxChangePercent.toFixed(3)}%)` }),
+    el('dd', { text: `${fmtLm(r.fluxBefore)} → ${fmtLm(r.fluxAfter)} (${sign}${fmtPct(r.fluxChangePercent, 3)})` }),
     el('dt', { text: 'Peak before' }),
     el('dd', { text: peak(r.peakBefore) }),
     el('dt', { text: 'Peak after' }),
@@ -346,7 +348,7 @@ function reportBox(r: RotationReport, kind: Kind): HTMLElement {
     el('dd', {
       text:
         (r.fastPath ? 'exact H shift (pure yaw), no resampling' : 'true rotation, bilinear resampling') +
-        (r.composed ? `; composed: total yaw ${r.composedAngles.yaw.toFixed(3)}°, pitch ${r.composedAngles.pitch.toFixed(3)}°, roll ${r.composedAngles.roll.toFixed(3)}°` : ''),
+        (r.composed ? `; composed: total yaw ${fmtDegFixed(r.composedAngles.yaw)}, pitch ${fmtDegFixed(r.composedAngles.pitch)}, roll ${fmtDegFixed(r.composedAngles.roll)}` : ''),
     }),
   ];
   return el('div', { class: 'report' }, [

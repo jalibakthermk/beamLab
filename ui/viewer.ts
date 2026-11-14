@@ -1,3 +1,4 @@
+import { messageText, toUserMessage } from '../core/messages';
 import Plotly, { type PlotlyHTMLElement } from './plotly';
 import type { AppState, Store } from './state/store';
 import type { PhotometricDataset } from '../core/model/dataset';
@@ -15,7 +16,7 @@ import {
 } from '../core/analysis/levels';
 import { hSection, vSection, type Section } from '../core/analysis/section';
 import { sample } from '../core/geometry/interpolate';
-import { subtract, OperationError } from '../core/ops/arithmetic';
+import { subtract } from '../core/ops/arithmetic';
 import { fitSegments } from '../core/analysis/cutoff';
 import { analyse, cutoffSubjects } from './cutoff';
 import { currentEvaluation } from './evaluate';
@@ -124,7 +125,7 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
   const secV = el('div', { class: 'section-plot' }) as unknown as PlotlyHTMLElement;
   const secHint = el('p', { class: 'muted section-hint', text: 'Click the view to set a cross-section marker.' });
   const empty = el('div', { class: 'viewer-empty' }, [
-    el('p', { text: 'No dataset selected.' }),
+    el('p', { text: 'Load an IES file to begin.' }),
     el('p', { class: 'muted', text: 'Drop IES files anywhere on this page, or use “Open IES files…”.' }),
   ]);
   const body = el('div', { class: 'viewer-body' }, [
@@ -184,7 +185,7 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
       store.setPreview(subtract(a, b));
       levelsMsg.textContent = '';
     } catch (e) {
-      levelsMsg.textContent = e instanceof OperationError ? `Cannot show the difference: ${e.message}` : String(e);
+      levelsMsg.textContent = `Cannot show the difference. ${messageText(toUserMessage(e))}`;
     }
   });
 

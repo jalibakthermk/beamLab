@@ -1,8 +1,8 @@
 # IES Workbench — Development Framework
 
-Working name: **beamLab** . Date: 2026-11-13, revised 2026-11-14 after Phase 5. Author: Jalib Akther.
+Working name: **beamLab**. Version 1.0.0. Date: 2026-11-13, revised 2026-11-14 after Phase 8 to describe the tool as built. Author: Jalib Akther.
 
-This document is the instruction set for building the tool. It is written so it can be placed in the repo root (as `FRAMEWORK.md` or `CLAUDE.md`) and followed phase by phase with Claude Code.
+This document started as the instruction set for building the tool phase by phase with Claude Code; it now describes the tool as built (1.0.0). Departures from the original plan are listed in section 13. User documentation: README.md, docs/conventions.md, docs/adding-a-regulation.md, CHANGELOG.md.
 
 ---
 
@@ -200,7 +200,7 @@ Generic engine driven by JSON definitions: schema and hand-written validator `co
 | Requirements | web tool: point, range, width and zone (min / max / avg), `<=` / `>=` | point, reach, width with min and/or max; no zone statistics |
 | Scale / lumens options | `--scale`, `--lumens` | not provided: use Manipulate → Scale |
 
-## 6. Manipulate module## 6. Manipulate module
+## 6. Manipulate module
 
 All binary operations follow one pipeline: **align → resample to a common grid → operate → tag provenance** (`ops/arithmetic.ts`, `geometry/resample.ts`). Every operation returns a new dataset; inputs are never modified. `NaN` in any input gives `NaN` in the result.
 
@@ -262,22 +262,31 @@ Add: intensity + intensity with weights ≥ 0 gives intensity; a negative weight
 
 Single-page layout, three regions:
 
-- **Left: Workspace.** Loaded and derived datasets: one row each with name, peak intensity, grid step, warning badge, select, overlay toggle and remove; failed files show their error on their own row. Drag and drop anywhere on the page, or a file picker; several files at once. Provenance chain per dataset: later phase.
+- **Header:** Open IES files, Report, Export settings, Import settings, Help.
+- **Left: Workspace.** Loaded and derived datasets: one row each with name, kind, peak intensity, grid step, warning badge, select, overlay toggle, remove and an expandable provenance chain; failed files show their error (from the message table) on their own row. Drag and drop anywhere on the page, or a file picker; several files at once. Each file's SHA-256 is computed locally with Web Crypto on load.
 - **Centre: Viewer.** Isocandela / false-colour views, cursor read-out, cross-sections, overlay, PNG export. While the Road tab is open: the road top view (false-colour lx on a log scale, isolux contours, lane markings, schematic vehicle outline, optional equal axis scale, cursor read-out in lx with x and y in m; unknown areas empty).
-- **Right: Task panel** with tabs *Info* (summary, source format and photometric type, symmetry, keywords, full warning list, flipH toggle, IES and CSV export), *Evaluate* (regulation selector, aim options, results table), *Road* (lamp pair helper and lamp list with dataset, position and aim; lanes; grid and treat-as-zero; isolux levels, width distances, points; requirement file; results table with reach, widths, points, requirement status and margins; CSV export; recalculates on every change in a Web Worker), *Manipulate* (operation picker; inputs A and B from the workspace; weights or scalar; extent; coverage policy; denominator floor; window limits; a plain-language summary before running, including whether resampling will happen and the resulting grid size; Preview; "Create dataset" with an editable name; on Add the note "Assumes both files share the same aim and reference axis. Lamp position offset is ignored (far field)."), *Cut-off*. Tabs of later phases are shown disabled until built.
+- **Right: Task panel** with tabs *Info* (summary, source format and photometric type, symmetry, keywords, full warning list, flipH toggle, IES and CSV export), *Evaluate* (regulation selector, aim options, results table), *Road* (lamp pair helper and lamp list with dataset, position and aim; lanes; grid and treat-as-zero; isolux levels, width distances, points; requirement file; results table with reach, widths, points, requirement status and margins; CSV export; recalculates on every change in a Web Worker), *Manipulate* (operation picker; inputs A and B from the workspace; weights or scalar; extent; coverage policy; denominator floor; window limits; a plain-language summary before running, including whether resampling will happen and the resulting grid size; Preview; "Create dataset" with an editable name; on Add the note "Assumes both files share the same aim and reference axis. Lamp position offset is ignored (far field)."), *Cut-off*. With no file loaded, every panel shows "Load an IES file to begin".
 
 Preview: a result shown in the viewer but not in the workspace, with "Create dataset" (editable name) and "Close preview". Workspace rows show the kind and an expandable provenance chain; the Info panel shows the chain, and names can be edited there.
 
 App state is a plain store without a framework (`ui/state/store.ts`): dataset registry, selected dataset, optional overlay dataset, view settings. Files are read with the browser File API and held in memory only; nothing is written to localStorage, IndexedDB or any other storage (a test checks every `ui/` file for this).
 
-A *Report* action exports the current evaluation as a printable page: file identity, operation chain, settings, results table, plots.
+**Report** (`core/report/build.ts` builds a plain report object from the current results; `ui/report/` renders it). Sections chosen by the user: header (tool and version, date and time, optional title, author, notes) with a summary of every "not evaluated" item and of the sections with unverified limits; file identity (name, SHA-256, format version, photometric type, grid step, range, peak, flux, parser warnings) for every dataset used; provenance chain; regulation check (id, revision, traffic side, aim mode and aim used, conditions, full results table, verdict, worst margin, isocandela plot with the elements, styled by status); cut-off analysis (settings, summary, scan and trace plots); road performance (lamps, lanes, grid, isolux plot, reach, widths, points, requirements); conventions. The "unverified limits" notice is placed next to the results of any file with `verified: false` and has no switch. Print CSS: A4, a page break before each section, table rows never split, table headers repeated, and the footer "Engineering assessment generated locally. Not a type-approval document." with page numbers on every page (CSS page-margin box). The browser's print dialog saves it as PDF.
+
+**Settings file** (`core/settings.ts`, `ui/state/settings.ts`): all settings as JSON — selection, view, evaluation, cut-off, road setup, report options, open tab. It never contains file content: files are listed by name, SHA-256 and mirror flag, and referred to inside the settings as `@file:<ref>`. On import the settings apply at once, and the file references resolve as files with the same hash are loaded; a notice lists each file as matched, still to load, or different content (same name, different hash; never used). Derived datasets and regulation or requirement files loaded from disk are not saved; the export says so.
+
+**Messages** (`core/messages.ts`): one table of every warning and error code (parser warnings and errors, operations, grids, rotation, aim, engine, export, validation, files, settings, worker) with plain-language text and a suggested action. Errors raised by beamLab's own checks may add their specific detail; any other exception shows the generic APP.UNEXPECTED text, never its raw message.
+
+**Consistency:** all number formatting in `core/format.ts` (cd, lx, degrees, percent, metres, lm, significant figures). Status is always text with an icon (✓ pass, ✗ fail, – not evaluated, ◐ incomplete). Every control is reachable by keyboard with a visible focus outline and has a label; the report closes with Escape; the Help panel is a modal dialog. Busy indicator (`ui/busy.ts`) for loading, evaluation, re-aim search, operations, aim to cut-off and report building; the road calculation runs in a Web Worker. The layout holds at laptop widths (no horizontal scrolling at 1280 px).
+
+**Help panel**: short guide per tab, the conventions table, and links to README, docs/conventions.md, docs/adding-a-regulation.md and CHANGELOG.md.
 
 Footer: copyright and licence line, plus a "files are processed locally" statement.
 
 ## 8. Repository structure
 
 ```
-/core
+/core         format.ts (number formatting), messages.ts (message table), settings.ts (settings file)
   /io          ies.ts, csv.ts, export.ts, format.ts (shared number formatting)
   /model       dataset.ts, provenance.ts, version.ts
   /geometry    coords.ts, interpolate.ts, resample.ts, rotate.ts, flux.ts
@@ -285,18 +294,21 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /analysis    summary.ts, section.ts, levels.ts, display.ts, contours.ts, cutoff.ts
   /regs        schema.ts, engine.ts, reaim.ts
   /road        illuminance.ts, setup.ts, metrics.ts, requirements.ts, results.ts   (no imports outside core/model and core/geometry)
+  /report      build.ts                  (report object)
 /data
   /regulations *.json                    (each with source + revision; README with the format; MIGRATION.md)
   /presets     cutoff/ (scan settings: schema.json, template.json); vehicles/ (EXAMPLE-passenger-car.json, made-up values)
   /requirements schema.json, template.json (road requirements, null values)
 /ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
                manipulate.ts, cutoff.ts (Cut-off tab), evaluate.ts (Evaluate tab), road.ts (Road tab), road-view.ts (road top view),
-               road-run.ts + road-worker.ts (road calculation in a Web Worker), plotly.ts (minimal Plotly bundle), report (later)
+               road-run.ts + road-worker.ts (road calculation in a Web Worker), plotly.ts (minimal Plotly bundle),
+               busy.ts, help.ts, settings-io.ts, state/settings.ts, report/ (collect.ts, render.ts, page.ts)
+/docs          conventions.md, adding-a-regulation.md
 /tests
   /fixtures    synthetic *.ies with known answers, and generate.ts that writes them; road/ (Road-illuminate golden reference)
   *.test.ts
 /scripts       write-fixtures.mjs           (npm run fixtures); golden-road-illuminate.py (regenerates the Road-illuminate reference; needs numpy and import/)
-FRAMEWORK.md   README.md   LICENSE
+FRAMEWORK.md   README.md   CHANGELOG.md   LICENSE
 ```
 
 Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts` and run `npm run fixtures`. A test fails if the committed files differ from the generator output.
@@ -305,7 +317,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–6 done and pushed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phase 7 (road performance) implemented and tested, awaiting review: 444 tests passing, golden comparison with Road-illuminate in place (5.2). Regulation data: 29 files migrated from UN R148 Rev.0 Amend.5 and UN R149 Rev.0 Amend.6 (Class C and V passing beams, R148 signal functions), all verified: false; report in data/regulations/MIGRATION.md. Remaining R149 sections are not yet converted; cut-off sharpness limits stay null (not taken from the text yet).
+Status (2026-11-14): Phases 0–7 done and pushed. Phase 8 (report and polish) implemented and tested, awaiting review; version 1.0.0. Type B/C axis mapping still to be checked against a reference viewer (decision 7). Regulation data: 29 files migrated from UN R148 Rev.0 Amend.5 and UN R149 Rev.0 Amend.6 (Class C and V passing beams, R148 signal functions), all verified: false; report in data/regulations/MIGRATION.md. Remaining R149 sections are not yet converted; cut-off sharpness limits stay null (not taken from the text yet).
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -317,7 +329,7 @@ Status (2026-11-14): Phases 0–6 done and pushed (Type B/C axis mapping still t
 | 5. Cut-off analysis | Gradient scan, cut-off line trace, "aim to cut-off" | Synthetic beam with a known cut-off position and gradient is recovered |
 | 6. Regulation engine | JSON schema, engine, overlay, first two regulations migrated from PIRA and beamTolerance | Results match those tools on the same files |
 | 7. Road performance | Shared road module, isolux view, requirements check | Matches Road-illuminate output on the same inputs |
-| 8. Report and polish | Printable report, presets, error messages, docs | A full evaluation can be exported and understood by someone else |
+| 8. Report and polish | Printable report, settings file, message table, consistency pass, docs, 1.0.0 | A full evaluation can be exported and understood by someone else; end-to-end test on synthetic fixtures |
 
 ## 10. Validation and tests
 
@@ -333,6 +345,7 @@ Status (2026-11-14): Phases 0–6 done and pushed (Type B/C axis mapping still t
 - **Cut-off**: sigmoid fixtures with an analytic answer (edge at V0 → cut-off at V0 − 0.05°, Gmax = A·tanh(0.05 / (2w))) on 0.05° and 0.25° grids, a kinked beam (elbow at H 1°, 15° shoulder) and its mirror, and a noisy beam with a second, weaker edge. Fine grid: position within 0.005° (measured 0.0001°), Gmax within 1% (measured 0.01%); kink: elbow within 0.02°, shoulder within 0.05° (measured exact); pitched by 0.33°: within 0.01° (measured 0.005°, resampling); aim: converges, residual ≤ 0.005°, correction within 0.01° of the geometric value.
 - **Regulation engine**: a TEST file of invented values only; hand-computed results on a plane field I = 3000 + 100·H + 50·V (bilinear exact) for every element type and every limit form; unit conversion, mirroring, search radius, scale factor; not-evaluated cases (point outside coverage, zone and line partly outside, missing position, NaN); re-aim search recovers a known optimum on a mis-aimed spot within 0.05°; validator messages.
 - **Road** (Phase 7): isotropic source, E = I·h / (x² + y² + h²)^1.5 to 1e-10; two lamps summed on and off the centre line; narrow spot pitched down by v from height h lands at x = h / tan v (within 0.1 m); yaw moves it to the expected side; a mirrored pair with opposite yaw and roll is symmetric about the centre line (1e-9); lamp aim equals the Phase 4 rotation (exact when composed, within 2 % after one more resampling); vertical plane and arbitrary normals; unknown share and treat-as-zero; size guard and input checks; lanes, lamp pair, EXAMPLE preset; reach, crossings (three-crossing case), width with separate areas and clipping by hand; requirements with unknown areas never passing; golden comparison with Road-illuminate (5.2).
+- **Phase 8**: message table complete for every parser warning raised by the fixtures, every core error class mapped to its code, no raw text from unexpected errors; number formatting; settings file (no file content, round trip, files matched by SHA-256 as they are loaded, hash mismatch, validation); **end-to-end** (`tests/e2e.test.ts`): load a fixture, aim to 1 % down with the elbow at H = 0, run the TEST regulation, cut-off scan and trace, a road calculation with an invented requirement, then check the report object section by section (identity, provenance, unverified notices, not-evaluated summary, plots, chosen sections only).
 - **Regressions**: each value mismatch found against a reference gets a synthetic fixture and a test (e.g. `fine-cutoff-typeB.ies` for the Phase 2 resampling-step fix).
 - **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 
@@ -363,3 +376,16 @@ Standing rules for every phase:
 Original kickoff prompt (kept for reference; Phases 0 and 1 were in the end run as separate steps):
 
 > Read FRAMEWORK.md fully. We are building this tool phase by phase. Start with Phase 0 and Phase 1 only. Rules: keep `core/` free of any DOM or plotting code; all files are processed locally in the browser; write the synthetic fixture generator and tests before the implementation of each function; do not invent regulation limit values — leave them `null` in JSON until I supply them; follow the Type A H-V sign convention in section 3.1 and add the sign-convention test. Stop at the end of Phase 1 and show me the test results and any open questions before continuing.
+
+## 13. Departures from the original plan
+
+- **Road-illuminate is not yet a consumer of `core/road`** (5.2, decision 2): the calculation was ported and checked against Road-illuminate's own output (golden comparison), but Road-illuminate still has its own copy.
+- **HSPR (vertical) method** of Road-illuminate is not reproduced; beamLab uses a true rotation and bilinear sampling (decision 9).
+- **Report as print CSS**, not a generated PDF file: the browser's print dialog makes the PDF, so no PDF library is needed.
+- **Settings file** was added in Phase 8 (not in the original plan) to make an evaluation reproducible without storing file content.
+- **Aim to cut-off** moved from Phase 4 to Phase 5; the **re-aim search** was added to the regulation engine (Phase 6).
+- **Plotly's contour trace** was replaced by contours computed in core (Phase 2), for speed with missing data.
+- **Cross-tool checks** against PIRA, beamTolerance and beamCorrelate were not run; regulation values were transcribed from the UN R148 and R149 texts instead and are marked `verified: false`.
+- **Bicubic interpolation** (decision 4) and **crop or fill of missing data before IES export** (decision 6) are not implemented.
+- **Regulations converted:** R149 Class C and V passing beams and the R148 signal functions; the other R149 sections are not yet converted.
+

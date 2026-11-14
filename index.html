@@ -11,11 +11,21 @@
         <h1>beamLab <small id="app-version"></small></h1>
         <p>IES Workbench: open, evaluate and manipulate photometric IES files.</p>
       </div>
-      <label class="btn primary file-btn">
-        Open IES files…
-        <input id="file-input" type="file" accept=".ies,.IES" multiple />
-      </label>
+      <nav class="header-actions" aria-label="Main actions">
+        <label class="btn primary file-btn">
+          Open IES files…
+          <input id="file-input" type="file" accept=".ies,.IES" multiple />
+        </label>
+        <button id="report-btn" class="btn" type="button">Report</button>
+        <button id="settings-export" class="btn" type="button">Export settings</button>
+        <label class="btn file-btn">
+          Import settings…
+          <input id="settings-input" type="file" accept=".json,application/json" />
+        </label>
+        <button id="help-btn" class="btn" type="button">Help</button>
+      </nav>
     </header>
+    <div id="settings-notice" class="settings-notice" role="status" hidden></div>
     <main class="layout">
       <aside id="workspace" class="panel" aria-label="Workspace"></aside>
       <section id="viewer" class="panel viewer" aria-label="Viewer"></section>

@@ -1,3 +1,5 @@
+import { busy } from './busy';
+import { messageText, toUserMessage } from '../core/messages';
 import Plotly from './plotly';
 import type { AppState, CutoffSettings, Store } from './state/store';
 import type { PhotometricDataset } from '../core/model/dataset';
@@ -11,9 +13,9 @@ import {
   type SharpnessResult,
   type TraceResult,
 } from '../core/analysis/cutoff';
-import { aimToCutoff, AimError, cutoffVFromPercentDown, percentDownFromV } from '../core/ops/aim';
+import { aimToCutoff, cutoffVFromPercentDown, percentDownFromV } from '../core/ops/aim';
 import { el } from './dom';
-import { fmtDeg } from './format';
+import { fmtDeg, fmtDegFixed, fmtPct as pct, fmtSig } from './format';
 
 // ── Presets (data/presets/cutoff/*.json, schema excluded) ────────────────
 const presetFiles = import.meta.glob<unknown>('../data/presets/cutoff/*.json', { import: 'default', eager: true });
@@ -123,8 +125,8 @@ function sel<T extends string>(label: string, value: T, options: Array<[T, strin
   return el('label', { class: 'field' }, [el('span', { text: label + (locked ? ' (preset)' : '') }), s]);
 }
 
-const fmtG = (g: number) => (Number.isFinite(g) ? g.toFixed(3) : '—');
-const fmtPct = (v: number) => (Number.isFinite(v) ? `${percentDownFromV(v).toFixed(2)}% ${percentDownFromV(v) >= 0 ? 'down' : '(up)'}` : '—');
+const fmtG = (g: number) => fmtSig(g, 3);
+const fmtPct = (v: number) => (Number.isFinite(v) ? `${pct(percentDownFromV(v), 2)} ${percentDownFromV(v) >= 0 ? 'down' : '(up)'}` : '—');
 
 function summaryRows(a: CutoffAnalysis): Array<[string, string]> {
   const s = a.scan;
@@ -132,7 +134,7 @@ function summaryRows(a: CutoffAnalysis): Array<[string, string]> {
   const sharp =
     a.sharpness.status === 'no-limits'
       ? 'values only (no limits in preset)'
-      : `${a.sharpness.status.toUpperCase()}${a.sharpness.margin !== null ? `, margin ${a.sharpness.margin >= 0 ? '+' : ''}${a.sharpness.margin.toFixed(3)}` : ''}`;
+      : `${a.sharpness.status.toUpperCase()}${a.sharpness.margin !== null ? `, margin ${a.sharpness.margin >= 0 ? '+' : ''}${fmtSig(a.sharpness.margin, 3)}` : ''}`;
   return [
     ['Cut-off V', s.found ? fmtDeg(s.v, 3) : 'not found'],
     ['Cut-off (inclination)', s.found ? fmtPct(s.v) : '—'],
@@ -264,7 +266,7 @@ export function renderCutoff(root: HTMLElement, state: AppState, store: Store): 
     class: 'btn primary',
     text: 'Preview aim',
     on: {
-      click: () => {
+      click: () => void busy('Aiming to the cut-off', () => {
         const source = state.preview?.compareTo ?? main;
         try {
           const r = aimToCutoff(source, {
@@ -272,16 +274,16 @@ export function renderCutoff(root: HTMLElement, state: AppState, store: Store): 
             elbowAtZero: s.elbowAtZero, trace: { hMin: e.hMin, hMax: e.hMax, hStep: e.hStep },
           });
           aimMessage =
-            `Correction: yaw ${r.yaw.toFixed(3)}°, pitch ${r.pitch.toFixed(3)}° in ${r.steps} step(s); ` +
-            `${r.converged ? 'converged' : 'NOT converged'}; residual V ${r.residual.v.toFixed(4)}°` +
-            (r.residual.h !== null ? `, elbow H ${r.residual.h.toFixed(3)}°` : '') +
+            `Correction: yaw ${fmtDegFixed(r.yaw)}, pitch ${fmtDegFixed(r.pitch)} in ${r.steps} step(s); ` +
+            `${r.converged ? 'converged' : 'NOT converged'}; residual V ${fmtDegFixed(r.residual.v, 4)}` +
+            (r.residual.h !== null ? `, elbow H ${fmtDegFixed(r.residual.h)}` : '') +
             '. Use “Create dataset” in the preview bar to keep it.';
           store.setPreview(r.dataset, { compareTo: source });
         } catch (err) {
-          aimMessage = err instanceof AimError ? err.message : String(err);
+          aimMessage = messageText(toUserMessage(err));
           store.setCutoff({});
         }
-      },
+      }),
     },
   });
 

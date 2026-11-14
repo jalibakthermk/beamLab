@@ -1,6 +1,6 @@
 {
   "name": "beamlab",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Open, evaluate and manipulate photometric IES (LM-63) files for automotive lamps, entirely in the browser.",
   "license": "UNLICENSED",

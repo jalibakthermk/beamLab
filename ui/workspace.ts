@@ -87,8 +87,8 @@ export function renderWorkspace(root: HTMLElement, state: AppState, store: Store
     state.entries.length
       ? list
       : el('div', { class: 'dropzone' }, [
-          el('p', { text: 'Drop IES files here' }),
-          el('p', { class: 'muted', text: 'or use “Open IES files…” above. Several files at once are fine.' }),
+          el('p', { text: 'Load an IES file to begin' }),
+          el('p', { class: 'muted', text: 'Drop files here or use “Open IES files…” above. Several files at once are fine. Files stay on this computer.' }),
         ]),
   );
 }

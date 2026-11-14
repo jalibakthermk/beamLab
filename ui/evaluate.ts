@@ -1,13 +1,14 @@
+import { busy } from './busy';
+import { messageText, toUserMessage } from '../core/messages';
 import type { AppState, Store } from './state/store';
 import type { PhotometricDataset } from '../core/model/dataset';
-import { AIM_MODES, parseRegulation, RegulationError, type AimMode, type Regulation } from '../core/regs/schema';
+import { AIM_MODES, parseRegulation, type AimMode, type Regulation } from '../core/regs/schema';
 import { evaluateWithAim, type AimedEvaluation } from '../core/regs/reaim';
-import { EngineError, resultsToCsv, type ElementResult, type RegulationResult } from '../core/regs/engine';
-import { AimError } from '../core/ops/aim';
+import { resultsToCsv, type ElementResult, type RegulationResult } from '../core/regs/engine';
 import { effective } from './cutoff';
 import { el } from './dom';
 import { downloadText } from './download';
-import { baseName, fmtCd } from './format';
+import { baseName, fmtCd, fmtDegFixed, fmtPct as pct, fmtSig, fmtStatus } from './format';
 
 // ── Regulation files ──────────────────────────────────────────────────────
 
@@ -26,7 +27,8 @@ for (const [file, obj] of Object.entries(bundled)) {
     const reg = parseRegulation(obj);
     BUNDLED.push({ key: `data:${reg.id}`, reg, origin });
   } catch (e) {
-    invalid.push({ origin, problems: e instanceof RegulationError ? e.problems : [String(e)] });
+    const m = toUserMessage(e);
+    invalid.push({ origin, problems: m.problems.length ? m.problems : [messageText(m)] });
   }
 }
 /** Regulation files loaded with the file picker in this session (memory only). */
@@ -47,10 +49,7 @@ async function loadRegulationFile(file: File): Promise<RegEntry | null> {
     loadMessage = '';
     return entry;
   } catch (e) {
-    loadMessage =
-      e instanceof RegulationError
-        ? `${file.name} is not a valid regulation file:\n- ${e.problems.join('\n- ')}`
-        : `${file.name} could not be read: ${e instanceof Error ? e.message : String(e)}`;
+    loadMessage = `${file.name}: ${messageText(toUserMessage(e))}`;
     return null;
   }
 }
@@ -86,14 +85,14 @@ export function currentEvaluation(state: AppState): AimedEvaluation | null {
 
 // ── Panel ─────────────────────────────────────────────────────────────────
 
-const MODE_LABEL: Record<AimMode, string> = {
+export const MODE_LABEL: Record<AimMode, string> = {
   'as-loaded': 'As loaded',
   'aim-to-cutoff': 'Aim to cut-off first',
   're-aim-search': 'Re-aim search (best worst-margin)',
 };
 
-const fmtMeasured = (e: ElementResult, x: number | null) => (x === null || !Number.isFinite(x) ? '—' : e.type === 'ratio' ? x.toPrecision(4) : `${fmtCd(x)} cd`);
-const fmtPct = (x: number | null) => (x === null || !Number.isFinite(x) ? '—' : `${x >= 0 ? '+' : ''}${x.toFixed(2)}%`);
+const fmtMeasured = (e: ElementResult, x: number | null) => (x === null || !Number.isFinite(x) ? '—' : e.type === 'ratio' ? fmtSig(x, 4) : `${fmtCd(x)} cd`);
+const fmtPct = (x: number | null) => pct(x, 2, true);
 const worstText = (r: RegulationResult) => {
   const w = r.elements.find((e) => e.name === r.worst);
   return w ? `${w.name} (${fmtPct(w.marginPercent)})` : '—';
@@ -194,7 +193,7 @@ export function renderEvaluate(root: HTMLElement, state: AppState, store: Store)
     class: 'btn primary',
     text: 'Evaluate',
     on: {
-      click: () => {
+      click: () => void busy('Evaluating', () => {
         if (!input) return;
         runError = '';
         try {
@@ -211,10 +210,10 @@ export function renderEvaluate(root: HTMLElement, state: AppState, store: Store)
           store.setEvaluate({ aimMode: usableMode, selected: null });
         } catch (e) {
           run = null;
-          runError = e instanceof EngineError || e instanceof AimError ? e.message : String(e);
+          runError = messageText(toUserMessage(e));
           store.setEvaluate({});
         }
-      },
+      }),
     },
   });
   evaluateBtn.disabled = !input;
@@ -248,18 +247,18 @@ export function renderEvaluate(root: HTMLElement, state: AppState, store: Store)
   const cond = r.conditions;
   parts.push(
     el('div', { class: `verdict verdict-${r.overall}` }, [
-      el('strong', { text: r.overall.toUpperCase() }),
+      el('strong', { text: fmtStatus(r.overall).toUpperCase() }),
       el('span', { text: ` ${r.counts.pass} pass, ${r.counts.fail} fail, ${r.counts.notEvaluated} not evaluated. Worst margin: ${worstText(r)}.` }),
     ]),
     el('dl', { class: 'kv small' }, [
       el('dt', { text: 'Aim used' }),
-      el('dd', { text: `${MODE_LABEL[ev.mode]}: yaw ${ev.aim.yaw.toFixed(3)}°, pitch ${ev.aim.pitch.toFixed(3)}° (relative to the dataset as loaded)` }),
+      el('dd', { text: `${MODE_LABEL[ev.mode]}: yaw ${fmtDegFixed(ev.aim.yaw)}, pitch ${fmtDegFixed(ev.aim.pitch)} (relative to the dataset as loaded)` }),
       el('dt', { text: 'Conditions' }),
       el('dd', { text: `scale ${cond.scaleFactor} × ${cond.lamps} lamp(s) = ${cond.factor}; ${cond.traffic}${cond.mirrored ? ' (elements mirrored in H)' : ''}; file units ${cond.units}` }),
       ...(ev.optimised
         ? [
             el('dt', { text: 'Nominal aim' }),
-            el('dd', { text: `${ev.nominal.overall.toUpperCase()}, worst ${worstText(ev.nominal)} (yaw ${ev.nominalAim.yaw.toFixed(3)}°, pitch ${ev.nominalAim.pitch.toFixed(3)}°)` }),
+            el('dd', { text: `${ev.nominal.overall.toUpperCase()}, worst ${worstText(ev.nominal)} (yaw ${fmtDegFixed(ev.nominalAim.yaw)}, pitch ${fmtDegFixed(ev.nominalAim.pitch)})` }),
             el('dt', { text: 'Optimised aim' }),
             el('dd', { text: `${ev.optimised.overall.toUpperCase()}, worst ${worstText(ev.optimised)}` }),
           ]
@@ -299,7 +298,7 @@ export function renderEvaluate(root: HTMLElement, state: AppState, store: Store)
           el('td', { text: e.limit ? `${e.limit.kind} ${fmtMeasured(e, e.limit.value)}` : '—' }),
           el('td', { text: e.margin === null ? '—' : fmtMeasured(e, e.margin) }),
           el('td', { text: fmtPct(e.marginPercent) }),
-          el('td', { class: `st st-${e.status}`, text: e.status === 'not-evaluated' ? 'not evaluated' : e.status }),
+          el('td', { class: `st st-${e.status}`, text: fmtStatus(e.status) }),
         ]);
         const pick = () => store.setEvaluate({ selected: e.name === s.selected ? null : e.name });
         tr.addEventListener('click', pick);

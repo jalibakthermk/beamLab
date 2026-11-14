@@ -43,9 +43,9 @@ describe('app state store', () => {
 
   it('records a loader error for a file without parsing it', () => {
     const store = createStore();
-    store.addFiles([{ name: 'photo.jpg', text: '', error: 'Not an .ies file.' }]);
+    store.addFiles([{ name: 'photo.jpg', text: '', error: 'This is not an .ies file.' }]);
     const e = store.getState().entries[0]!;
-    expect(e.error).toBe('Not an .ies file.');
+    expect(e.error).toBe('This is not an .ies file.');
     expect(e.dataset).toBeNull();
     expect(store.getState().selectedKey).toBeNull();
   });
