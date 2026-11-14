@@ -1,0 +1,28 @@
+{
+  "id": "TEST-invented-values",
+  "title": "TEST ONLY: invented values, not a regulation. Used by the test suite; never copy into data/regulations.",
+  "source": "beamLab test suite (all values invented)",
+  "revision": "test",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": true,
+  "parameters": { "Iref": 4000 },
+  "aim": {
+    "modes": ["as-loaded", "aim-to-cutoff", "re-aim-search"],
+    "nominalCutoffV": null,
+    "reaim": { "h": null, "v": null }
+  },
+  "elements": [
+    { "type": "point", "name": "P", "h": 2.5, "v": -1.5, "min": 3000, "ref": "invented table 1" },
+    { "type": "point", "name": "Q", "h": 0, "v": 0, "min": { "percent": 80, "of": { "parameter": "Iref" } } },
+    { "type": "point", "name": "R1", "h": 0, "v": 0, "min": 3100, "searchRadius": 1 },
+    { "type": "point", "name": "P90", "h": -2, "v": -2, "min": { "percent": 90, "of": { "element": "Q" } } },
+    { "type": "point", "name": "Pmax", "h": -5, "v": 0, "min": { "percent": 50, "of": "max" } },
+    { "type": "line", "name": "L", "from": [-4, 0], "to": [4, 2], "min": 2500 },
+    { "type": "zone", "name": "Zmax", "polygon": [[-2, -2], [2, -2], [2, 2], [-2, 2]], "max": 3400 },
+    { "type": "zone", "name": "Zmin", "polygon": [[-2, -2], [2, -2], [2, 2], [-2, 2]], "min": 2800 },
+    { "type": "ratio", "name": "P/Q", "a": "P", "b": "Q", "min": 1.05, "max": 1.2 },
+    { "type": "global", "name": "Imax", "max": 4100 },
+    { "type": "point", "name": "NoLimit", "h": 1, "v": 1, "min": null }
+  ]
+}

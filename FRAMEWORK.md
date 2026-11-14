@@ -136,27 +136,32 @@ IES export refuses datasets whose kind is not `'intensity'` or that contain `NaN
 
 ### 5.1 Regulation check
 
-Generic engine (`regs/engine.ts`) driven by JSON definitions.
+Generic engine driven by JSON definitions: schema and hand-written validator `core/regs/schema.ts`, engine `core/regs/engine.ts`, aim modes `core/regs/reaim.ts`. Files live in `data/regulations/` (see its README); the test suite uses its own file of invented values in `tests/fixtures/regs/`, never copied there.
 
 ```json
 {
-  "id": "UN-R149-ClassC-LHT-or-RHT",
-  "title": "...", "revision": "...", "source": "document + paragraph",
-  "aim": { "type": "cutoff", "nominalV": -0.57, "allowReaim": { "h": 0.5, "v": 0.25 } },
+  "id": "…", "title": "…", "source": "document + paragraph", "revision": "…",
+  "verified": false,
+  "units": "cd",
+  "mirrorForLeftHandTraffic": false,
+  "parameters": { "name": null },
+  "aim": { "modes": ["as-loaded", "aim-to-cutoff", "re-aim-search"], "nominalCutoffV": null, "reaim": { "h": null, "v": null } },
   "elements": [
-    { "type": "point", "name": "...", "h": 0, "v": 0, "min": null, "max": null },
-    { "type": "zone",  "name": "...", "polygon": [[h,v], ...], "max": null },
-    { "type": "line",  "name": "...", "from": [h,v], "to": [h,v], "min": null },
-    { "type": "ratio", "name": "...", "a": "pointName", "b": "pointName", "min": null }
+    { "type": "point",  "name": "…", "h": null, "v": null, "min": null, "max": null, "searchRadius": null, "ref": "table / paragraph" },
+    { "type": "line",   "name": "…", "from": [null, null], "to": [null, null], "min": null },
+    { "type": "zone",   "name": "…", "polygon": [[null, null], [null, null], [null, null]], "max": null },
+    { "type": "ratio",  "name": "…", "a": "element", "b": "element", "min": null, "max": null },
+    { "type": "global", "name": "…", "max": null }
   ]
 }
 ```
 
-- Element types: point, line segment, zone (polygon), ratio between elements, and "max anywhere in zone".
-- Result per element: measured value, limit, margin in cd and in percent, pass/fail. Plus an overall verdict and the worst-margin element.
-- Overlay all elements on the isocandela plot, coloured by result.
-- Optional re-aim search: within the tolerance the regulation allows, find the aim that maximises the worst margin, and report the aim used.
-- Scaling inputs: number of lamps, measured vs nominal flux, test voltage factor, so one file can be checked under stated conditions.
+- **File fields**: id, title, source, revision, `verified` (default false; the UI shows an "unverified limits" banner until true), `units` (`cd`, or `lx@25m` converted with cd = lx × 625 for limits and parameters; ratio limits are dimensionless), `mirrorForLeftHandTraffic` (files are written for right-hand traffic; left-hand traffic mirrors every element in H only if this is true), named `parameters`, the aim block (allowed modes, nominal cut-off V, permitted ± re-aim range in H and V) and the elements. Unknown values are `null`.
+- **Elements**: point (optional search radius: the most favourable value within it counts), line (min or max along the whole segment), zone (polygon: max limit = "max anywhere", min limit = "min anywhere"), ratio between two named elements, global (maximum of the whole distribution). Each may carry its own `ref` (table or paragraph).
+- **Limits**: a number in file units, `null`, or a percentage of a reference: `{ "percent": p, "of": "max" | { "element": name } | { "parameter": name } }`. The validator rejects unknown references and circular ones, and names every problem by its field path.
+- **Engine**: intensity datasets only. Test conditions (scale factor and number of lamps) multiply the measured values and are stated in the result. Points use `sample()`; lines and zones are evaluated at the dataset's own nodes inside them plus their boundary at a 0.05° step (and every grid-line crossing), returning the worst value and its position. Per element: measured value, resolved limits, binding limit, margin in cd and percent, position, status pass / fail / not evaluated. Anything touching `NaN`, outside coverage, without a position or without a limit is "not evaluated", never a pass. Overall: pass only if every element passed; incomplete if any was not evaluated; otherwise fail. The worst-margin element (smallest margin in percent) is reported.
+- **Aim modes**: as loaded; aim to cut-off first (Phase 5, at the file's nominal V, using the Cut-off tab's scan settings); re-aim search within the permitted range (9 × 9 coarse grid, then 6 refinement rounds, on a rotated view of the original so nothing is resampled twice; the final result uses one composed rotation). The search reports the aim found and the results at both the nominal and the optimised aim; it is disabled, with an explanation, if either range is null. Its precision is limited by the data grid: bilinear interpolation peaks at grid nodes.
+- **Evaluate tab**: regulation, traffic side, aim mode, scale factor, number of lamps; a file picker loads a regulation JSON for the session (memory only); results table (sortable by margin, worst margin highlighted, rows select elements); all elements drawn on the isocandela view coloured by status, and clicking an element selects its row; overall verdict with aim and conditions; results CSV export.
 
 **Important:** the numeric limit tables must be transcribed from the current official regulation text and verified by you; the build must not invent or recall them. Start by migrating the tables already validated in PIRA (signal lamps, R148 / FMVSS 108) and beamTolerance (R149 Class C low beam), then add others one regulation at a time, each with a `source` and `revision` field.
 
@@ -253,13 +258,13 @@ Footer: copyright and licence line, plus a "files are processed locally" stateme
   /geometry    coords.ts, interpolate.ts, resample.ts, rotate.ts, flux.ts
   /ops         arithmetic.ts, aim.ts
   /analysis    summary.ts, section.ts, levels.ts, display.ts, contours.ts, cutoff.ts
-  /regs        engine.ts, schema.ts
+  /regs        schema.ts, engine.ts, reaim.ts
   /road        illuminance.ts            (shared with Road-illuminate)
 /data
-  /regulations *.json                    (each with source + revision)
+  /regulations *.json                    (each with source + revision; README with the format)
   /presets     cutoff/ (scan settings: schema.json, template.json); vehicle mounting presets (later)
 /ui            main.ts, state/store.ts, workspace.ts, viewer.ts, info.ts (task panel),
-               manipulate.ts, cutoff.ts (Cut-off tab), plotly.ts (minimal Plotly bundle), report (later)
+               manipulate.ts, cutoff.ts (Cut-off tab), evaluate.ts (Evaluate tab), plotly.ts (minimal Plotly bundle), report (later)
 /tests
   /fixtures    synthetic *.ies with known answers, and generate.ts that writes them
   *.test.ts
@@ -273,7 +278,7 @@ Fixtures are generated, never edited by hand: change `tests/fixtures/generate.ts
 
 Finish and test each phase before starting the next.
 
-Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phase 5 implemented and tested (328 tests passing), awaiting review; sharpness limits await verified regulation values.
+Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still to be checked against a reference viewer, decision 7). Phases 5 and 6 implemented and tested (366 tests passing), awaiting review. No regulation data yet: data/regulations/ is empty until the source files are supplied (import/ was not present); cut-off sharpness limits are null for the same reason.
 
 | Phase | Deliverable | Done when |
 |---|---|---|
@@ -299,6 +304,7 @@ Status (2026-11-14): Phases 0–4 done and deployed (Type B/C axis mapping still
 - **Arithmetic**: hand-calculated cases for every operation; invariants A + B − B = A (1e-12 relative on identical grids, 1e-9 on different grids, compared on the merged grid), scale by k then 1/k = A (1e-12), divide(A, A) = 1 exactly above the floor, flux(A + B) = flux(A) + flux(B) on the same coverage; intersection, union and treat-as-zero; kind rules and IES export refusal; provenance content and chain.
 - **Rotation**: sign of yaw, pitch and roll on direction vectors and on the asymmetric fixture; pure yaw = exact H shift; H = 0 pitched by p → V + p exactly; H = 90°, V = 0 unchanged by pitch; roll 90° maps (h, 0) to (0, −h); Gaussian peak at the hand-computed position (within half a grid step); two rotations = one composed rotation (1e-9 of peak); rotate then inverse, composed: exact (1e-9 of peak); without composition, smooth beam on a 3° grid: within 0.1% of peak (measured 0.047%); flux on the extended grid within 0.05% (measured 0.004%).
 - **Cut-off**: sigmoid fixtures with an analytic answer (edge at V0 → cut-off at V0 − 0.05°, Gmax = A·tanh(0.05 / (2w))) on 0.05° and 0.25° grids, a kinked beam (elbow at H 1°, 15° shoulder) and its mirror, and a noisy beam with a second, weaker edge. Fine grid: position within 0.005° (measured 0.0001°), Gmax within 1% (measured 0.01%); kink: elbow within 0.02°, shoulder within 0.05° (measured exact); pitched by 0.33°: within 0.01° (measured 0.005°, resampling); aim: converges, residual ≤ 0.005°, correction within 0.01° of the geometric value.
+- **Regulation engine**: a TEST file of invented values only; hand-computed results on a plane field I = 3000 + 100·H + 50·V (bilinear exact) for every element type and every limit form; unit conversion, mirroring, search radius, scale factor; not-evaluated cases (point outside coverage, zone and line partly outside, missing position, NaN); re-aim search recovers a known optimum on a mis-aimed spot within 0.05°; validator messages.
 - **Regressions**: each value mismatch found against a reference gets a synthetic fixture and a test (e.g. `fine-cutoff-typeB.ies` for the Phase 2 resampling-step fix).
 - **Browser check**: tests run in Node and do not run Plotly, so after UI changes also load files in the dev server and in the production build (`npm run build`, then `npm run preview`) and check the console for errors.
 

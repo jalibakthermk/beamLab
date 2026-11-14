@@ -54,7 +54,19 @@ export interface Preview {
   report: RotationReport | null;
 }
 
-export type PanelTab = 'info' | 'manipulate' | 'cutoff';
+export type PanelTab = 'info' | 'evaluate' | 'manipulate' | 'cutoff';
+
+/** Evaluate tab settings. */
+export interface EvaluateSettings {
+  regId: string | null;
+  traffic: 'RHT' | 'LHT';
+  aimMode: 'as-loaded' | 'aim-to-cutoff' | 're-aim-search';
+  scaleFactor: number;
+  lamps: number;
+  /** Highlighted element (table row and overlay). */
+  selected: string | null;
+  sortByMargin: boolean;
+}
 
 /** Cut-off tab settings. Defaults are tool defaults, not regulation values. */
 export interface CutoffSettings {
@@ -88,6 +100,7 @@ export interface AppState {
   preview: Preview | null;
   panelTab: PanelTab;
   cutoff: CutoffSettings;
+  evaluate: EvaluateSettings;
 }
 
 export type Listener = (state: AppState) => void;
@@ -109,6 +122,7 @@ export interface Store {
   rename(key: string, name: string): void;
   setPanelTab(tab: PanelTab): void;
   setCutoff(patch: Partial<CutoffSettings>): void;
+  setEvaluate(patch: Partial<EvaluateSettings>): void;
 }
 
 function load(key: string, name: string, text: string, flipH: boolean): Entry {
@@ -130,6 +144,7 @@ export function createStore(): Store {
     preview: null,
     panelTab: 'info',
     cutoff: { ...DEFAULT_CUTOFF },
+    evaluate: { regId: null, traffic: 'RHT', aimMode: 'as-loaded', scaleFactor: 1, lamps: 1, selected: null, sortByMargin: false },
   };
   const listeners = new Set<Listener>();
   let counter = 0;
@@ -251,6 +266,10 @@ export function createStore(): Store {
 
     setCutoff(patch) {
       set({ ...state, cutoff: { ...state.cutoff, ...patch } });
+    },
+
+    setEvaluate(patch) {
+      set({ ...state, evaluate: { ...state.evaluate, ...patch } });
     },
   };
 }

@@ -18,6 +18,8 @@ import { sample } from '../core/geometry/interpolate';
 import { subtract, OperationError } from '../core/ops/arithmetic';
 import { fitSegments } from '../core/analysis/cutoff';
 import { analyse, cutoffSubjects } from './cutoff';
+import { currentEvaluation } from './evaluate';
+import { geometryOutline, nearestElement } from '../core/regs/engine';
 import { el } from './dom';
 import { baseName, fmtCd, fmtDeg, fmtValue, unitFor, type Kind } from './format';
 import { DIVERGING, maskScale, NEGATIVE_LINE, POSITIVE_LINE, viridis, viridisScale } from './colors';
@@ -211,7 +213,13 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
       down = null;
       if (moved > 4) return;
       const p = eventToData(plot, e);
-      if (p) store.setMarker(p);
+      if (!p) return;
+      // Evaluate tab: a click on an element selects it (table and overlay); elsewhere it sets the section marker
+      const st = store.getState();
+      const ev = st.panelTab === 'evaluate' ? currentEvaluation(st) : null;
+      const hit = ev ? nearestElement(ev.result, p.h, p.v, 0.4) : null;
+      if (hit) store.setEvaluate({ selected: hit === st.evaluate.selected ? null : hit });
+      else store.setMarker(p);
     },
     true,
   );
@@ -440,6 +448,30 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
           });
         }
       }
+      // Evaluate tab: every element coloured by status; the selected one thicker and labelled
+      const ev = state.panelTab === 'evaluate' ? currentEvaluation(state) : null;
+      if (ev) {
+        const colour = { pass: '#2b8a3e', fail: '#c92a2a', 'not-evaluated': '#868e96' } as const;
+        for (const e of ev.result.elements) {
+          const o = geometryOutline(e.geometry);
+          if (!o.h.length) continue;
+          const sel = e.name === state.evaluate.selected;
+          const col = colour[e.status];
+          const single = o.h.length === 1;
+          data.push({
+            type: 'scatter', mode: single ? (sel ? 'markers+text' : 'markers') : sel ? 'lines+text' : 'lines',
+            x: o.h, y: o.v, hoverinfo: 'skip', showlegend: false,
+            text: sel ? [e.name, ...Array(o.h.length - 1).fill('')] : undefined, textposition: 'top right', textfont: { color: col, size: 12 },
+            line: { color: col, width: sel ? 3.5 : 1.8, dash: e.type === 'global' ? 'dot' : 'solid' },
+            marker: { color: col, size: sel ? 13 : 8, symbol: e.type === 'global' ? 'star' : 'circle', line: { color: sel ? c.fg : col, width: sel ? 2 : 0 } },
+            fill: e.geometry.kind === 'zone' ? 'toself' : 'none',
+            fillcolor: e.geometry.kind === 'zone' ? `${col}${sel ? '33' : '14'}` : undefined,
+          });
+          if (!single && e.geometry.kind === 'point' && e.geometry.radius > 0) {
+            data.push({ type: 'scatter', mode: 'markers', x: [e.geometry.h], y: [e.geometry.v], hoverinfo: 'skip', showlegend: false, marker: { color: col, size: sel ? 10 : 6 } });
+          }
+        }
+      }
       const cov = ds.coverage;
       data.push({
         type: 'scatter', mode: 'lines', hoverinfo: 'skip', showlegend: false,
@@ -480,6 +512,7 @@ export function createViewer(root: HTMLElement, store: Store): Viewer {
           ov ? el('span', { class: 'leg leg-dash', text: ovLabel }) : null,
           kind === 'difference' ? el('span', { class: 'leg leg-zero', text: 'zero line' }) : null,
           state.panelTab === 'cutoff' && kind === 'intensity' ? el('span', { class: 'leg leg-cut', text: 'cut-off trace, fit and elbow (×); dotted: scan H' }) : null,
+          ev ? el('span', { class: 'leg leg-eval', text: 'regulation elements: green pass, red fail, grey not evaluated (click to select)' }) : null,
           el('span', { class: 'leg leg-cov', text: 'data coverage' }),
         ].filter((n): n is HTMLSpanElement => n !== null),
       );

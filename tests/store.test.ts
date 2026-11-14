@@ -197,6 +197,17 @@ describe('cut-off settings (Phase 5)', () => {
   });
 });
 
+describe('evaluate settings (Phase 6)', () => {
+  it('start with no regulation, as-loaded aim and unit conditions; can be changed', () => {
+    const store = createStore();
+    expect(store.getState().evaluate).toEqual({ regId: null, traffic: 'RHT', aimMode: 'as-loaded', scaleFactor: 1, lamps: 1, selected: null, sortByMargin: false });
+    store.setEvaluate({ regId: 'x', selected: 'P', sortByMargin: true });
+    expect(store.getState().evaluate).toMatchObject({ regId: 'x', selected: 'P', sortByMargin: true });
+    store.setPanelTab('evaluate');
+    expect(store.getState().panelTab).toBe('evaluate');
+  });
+});
+
 describe('ui/ keeps files in memory only', () => {
   const sources = import.meta.glob<string>('../ui/**/*.ts', { query: '?raw', import: 'default', eager: true });
   it.each(Object.entries(sources))('%s does not use browser storage', (_f, src) => {
