@@ -1,0 +1,2 @@
+# Keep fixture bytes exact (some use CRLF, some LF on purpose).
+*.ies -text

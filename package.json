@@ -10,7 +10,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.core.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.core.json",
+    "fixtures": "node scripts/write-fixtures.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

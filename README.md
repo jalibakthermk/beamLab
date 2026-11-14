@@ -17,6 +17,7 @@ npm run typecheck   # strict TypeScript check (core/ is also checked without DOM
 npm test            # run Vitest once
 npm run build       # production build into dist/
 npm run preview     # serve the built dist/ locally
+npm run fixtures    # regenerate tests/fixtures/*.ies from tests/fixtures/generate.ts
 ```
 
 Put real IES files in `local-data/`. That folder is git-ignored and must never be committed. Test fixtures in `tests/fixtures/` are synthetic only.
@@ -26,7 +27,9 @@ Put real IES files in `local-data/`. That folder is git-ignored and must never b
 - `core/` — pure TypeScript library (parsing, geometry, operations, analysis, regulations, road). No DOM code; enforced by `tests/core-purity.test.ts` and `tsconfig.core.json`.
 - `ui/` — browser user interface; calls into `core/`.
 - `data/` — regulation definitions and presets as JSON.
-- `tests/` — Vitest tests and synthetic fixtures.
+- `tests/` — Vitest tests; `tests/fixtures/` holds synthetic IES files written by `generate.ts`.
+- `scripts/` — `write-fixtures.mjs` (`npm run fixtures`).
+- `local-data/` — your real IES files; git-ignored, never committed.
 
 ## Licence
 

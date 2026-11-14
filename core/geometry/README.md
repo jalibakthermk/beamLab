@@ -1,3 +1,3 @@
 # core/geometry
 
-Coordinate work via unit direction vectors: Type A/B/C angle conversions, interpolation (bilinear default, bicubic optional), resampling to a target grid, 3D rotation and solid-angle weights for flux integration. No DOM code.
+Coordinate work via unit direction vectors: Type A/B/C angle conversions (Type B/C vehicle-axis mapping in `AXIS_ASSUMPTIONS`, `coords.ts`), bilinear interpolation, resampling (Type A → A, and Type B/C → canonical Type A on load) and flux / solid-angle weights. Planned: bicubic interpolation (decision pending) and 3D rotation (Phase 4). No DOM code.
